@@ -1,0 +1,1 @@
+// Extended artist information

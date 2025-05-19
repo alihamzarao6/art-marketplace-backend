@@ -1,0 +1,1 @@
+// User schema (artists, buyers, admin)
