@@ -1,8 +1,8 @@
-const app = require("./app");
+const app = require("./src/app");
 const mongoose = require("mongoose");
-const logger = require("./utils/logger");
-const config = require("./config/config");
-const connectDB = require("./config/database");
+const logger = require("./src/utils/logger");
+const config = require("./src/config/config");
+const connectDB = require("./src/config/database");
 
 // Handle uncaught exceptions
 process.on("uncaughtException", (err) => {
@@ -31,7 +31,7 @@ const io = require("socket.io")(server, {
 });
 
 // Configure socket events
-require("./sockets")(io);
+// require("./src/sockets")(io);
 
 // Handle unhandled promise rejections
 process.on("unhandledRejection", (err) => {
