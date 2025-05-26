@@ -22,13 +22,13 @@ const server = app.listen(config.port, () => {
 });
 
 // Socket.io setup
-const io = require("socket.io")(server, {
-  cors: {
-    origin: config.frontendUrl,
-    methods: ["GET", "POST"],
-    credentials: true,
-  },
-});
+// const io = require("socket.io")(server, {
+//   cors: {
+//     origin: config.frontendUrl,
+//     methods: ["GET", "POST"],
+//     credentials: true,
+//   },
+// });
 
 // Configure socket events
 // require("./src/sockets")(io);
