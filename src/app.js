@@ -9,18 +9,42 @@ const config = require("./config/config");
 const { errorHandler } = require("./middleware/errorHandler");
 const routes = require("./routes");
 
-// Create Express app
+// Initialize express app
 const app = express();
 
-// Apply middlewares
-app.use(helmet()); // Security headers
-app.use(compression()); // Compress responses
-app.use(morgan("dev")); // HTTP request logging
-app.use(cors()); // Enable CORS
-app.use(express.json()); // Parse JSON request body
-app.use(express.urlencoded({ extended: true })); // Parse URL-encoded request body
+// Set security HTTP headers
+app.use(helmet());
 
-// Health check route
+// Development logging
+if (config.nodeEnv === "development") {
+  app.use(morgan("dev"));
+}
+
+// Enable CORS
+app.use(cors());
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: config.security.rateLimitWindow * 60 * 1000, // in minutes
+  max: config.security.rateLimitMax, // max requests per windowMs
+  message: "Too many requests from this IP, please try again later!",
+});
+app.use("/api", limiter);
+
+// Body parser
+app.use(express.json({ limit: "10kb" }));
+app.use(express.urlencoded({ extended: true, limit: "10kb" }));
+
+// Data sanitization against NoSQL query injection
+app.use(mongoSanitize());
+
+// Compression
+app.use(compression());
+
+// Serving static files
+app.use(express.static("public"));
+
+// Health check endpoint
 app.get("/health", (req, res) => {
   res.status(200).json({
     status: "ok",
@@ -32,11 +56,11 @@ app.get("/health", (req, res) => {
 // API routes
 app.use("/api", routes);
 
-// 404 handler
-app.use((req, res, next) => {
-  const error = new Error(`Not Found - ${req.originalUrl}`);
-  error.statusCode = 404;
-  next(error);
+// Handle unrecognized routes
+app.all("*", (req, res, next) => {
+  const err = new Error(`Can't find ${req.originalUrl} on this server!`);
+  err.status = 404;
+  next(err);
 });
 
 // Global error handler
