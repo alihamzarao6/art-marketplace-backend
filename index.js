@@ -27,23 +27,23 @@ mongoose
   });
 
 // Start server
-// const server = app.listen(config.port, () => {
-//   logger.info(
-//     `Server running in ${config.nodeEnv} mode on port ${config.port}`
-//   );
-// });
+const server = app.listen(config.port, () => {
+  logger.info(
+    `Server running in ${config.nodeEnv} mode on port ${config.port}`
+  );
+});
 
 // Socket.io setup
-// const io = require("socket.io")(server, {
-//   cors: {
-//     origin: config.frontendUrl,
-//     methods: ["GET", "POST"],
-//     credentials: true,
-//   },
-// });
+const io = require("socket.io")(server, {
+  cors: {
+    origin: config.frontendUrl,
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+});
 
 // Configure socket events
-// require("./src/sockets")(io);
+require("./src/sockets")(io);
 
 // Handle unhandled promise rejections
 process.on("unhandledRejection", (err) => {
