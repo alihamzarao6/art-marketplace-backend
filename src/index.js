@@ -1,8 +1,8 @@
-const app = require("./src/app");
+const app = require("./app");
 const mongoose = require("mongoose");
-const logger = require("./src/utils/logger");
-const config = require("./src/config/config");
-const connectDB = require("./src/config/database");
+const logger = require("./utils/logger");
+const config = require("./config/config");
+const connectDB = require("./config/database");
 
 // Handle uncaught exceptions
 process.on("uncaughtException", (err) => {
