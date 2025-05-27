@@ -49,17 +49,17 @@ app.use(compression());
 // Serving static files
 app.use(express.static("public"));
 
-// API routes
-app.use("/api", routes);
-
 // Health check endpoint
-app.get("/", (req, res) => {
+app.get("/health", (req, res) => {
   res.status(200).json({
-    status: "success",
+    status: "ok",
     message: "Server is running",
-    timestamp: new Date().toISOString(),
+    timestamp: new Date(),
   });
 });
+
+// API routes
+app.use("/api", routes);
 
 // Handle unrecognized routes
 app.all("*", (req, res, next) => {

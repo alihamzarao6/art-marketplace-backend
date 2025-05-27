@@ -1,19 +1,25 @@
-const serverless = require("serverless-http");
+require("dotenv").config();
 const app = require("./app");
 const mongoose = require("mongoose");
 const logger = require("./utils/logger");
 const config = require("./config/config");
-const connectDB = require("./config/database");
 
-// Handle uncaught exceptions
-process.on("uncaughtException", (err) => {
-  logger.error("UNCAUGHT EXCEPTION! 💥 Shutting down...");
-  logger.error(err.name, err.message, err.stack);
-  process.exit(1);
-});
-
+const PORT = process.env.PORT || 5000;
 // Connect to MongoDB
-connectDB();
+mongoose
+  .connect(config.mongodb.uri)
+  .then(() => {
+    console.log("Connected to MongoDB");
+
+    // Start server
+    app.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error("Failed to connect to MongoDB", err);
+    process.exit(1);
+  });
 
 // For serverless deployment, we don't need to create a server
 // The serverless function will handle the requests
@@ -30,19 +36,14 @@ connectDB();
 // Configure socket events
 // require("./src/sockets")(io);
 
-// Handle unhandled promise rejections
-process.on("unhandledRejection", (err) => {
-  logger.error("UNHANDLED REJECTION! 💥 Shutting down...");
-  logger.error(err.name, err.message, err.stack);
+// Handle uncaught exceptions
+process.on("uncaughtException", (err) => {
+  logger.error("Uncaught Exception:", err);
   process.exit(1);
 });
 
-// Handle SIGTERM signal
-process.on("SIGTERM", () => {
-  logger.info("👋 SIGTERM RECEIVED. Shutting down gracefully");
-  logger.info("💥 Process terminated!");
-  process.exit(0);
+// Handle unhandled promise rejections
+process.on("unhandledRejection", (err) => {
+  logger.error("Unhandled Rejection:", err);
+  process.exit(1);
 });
-
-// Export the serverless handler
-module.exports = serverless(app);
