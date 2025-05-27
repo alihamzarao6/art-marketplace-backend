@@ -41,9 +41,6 @@ app.use(mongoSanitize());
 // Compression
 app.use(compression());
 
-// Serving static files
-app.use(express.static("public"));
-
 // Health check endpoint
 app.get("/health", (req, res) => {
   res.status(200).json({
