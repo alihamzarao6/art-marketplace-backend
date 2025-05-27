@@ -1,4 +1,4 @@
-const { body, validationResult } = require("express-validator");
+const { body, validationResult, param } = require("express-validator");
 const User = require("../models/User");
 
 // Validation middleware to check for errors
@@ -105,7 +105,7 @@ const validateForgotPassword = [
 
 // Reset password validation rules
 const validateResetPassword = [
-  body("token").notEmpty().withMessage("Reset token is required"),
+  param("token").notEmpty().withMessage("Reset token is required"),
 
   body("password")
     .isLength({ min: 8 })
