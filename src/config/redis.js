@@ -21,4 +21,4 @@ const createRedisClient = async () => {
   return client;
 };
 
-// module.exports = createRedisClient;
+module.exports = createRedisClient;
