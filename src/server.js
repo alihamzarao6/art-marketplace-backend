@@ -38,17 +38,17 @@ connectDB();
 process.on("unhandledRejection", (err) => {
   logger.error("UNHANDLED REJECTION! 💥 Shutting down...");
   logger.error(err.name, err.message, err.stack);
-  server.close(() => {
-    process.exit(1);
-  });
+  // server.close(() => {
+  //   process.exit(1);
+  // });
 });
 
 // Handle SIGTERM signal
 process.on("SIGTERM", () => {
   logger.info("👋 SIGTERM RECEIVED. Shutting down gracefully");
-  server.close(() => {
-    logger.info("💥 Process terminated!");
-  });
+  // server.close(() => {
+  //   logger.info("💥 Process terminated!");
+  // });
 });
 
 module.exports = serverless(app);
