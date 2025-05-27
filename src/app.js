@@ -5,7 +5,6 @@ const helmet = require("helmet");
 const compression = require("compression");
 const rateLimit = require("express-rate-limit");
 const mongoSanitize = require("express-mongo-sanitize");
-const xssFilter = require("xss-clean");
 const config = require("./config/config");
 const { errorHandler } = require("./middleware/errorHandler");
 const routes = require("./routes");
@@ -43,9 +42,6 @@ app.use(express.urlencoded({ extended: true, limit: "10kb" }));
 
 // Data sanitization against NoSQL query injection
 app.use(mongoSanitize());
-
-// Data sanitization against XSS
-app.use(xssFilter());
 
 // Compression
 app.use(compression());

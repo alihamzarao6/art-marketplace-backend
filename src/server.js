@@ -51,4 +51,4 @@ process.on("SIGTERM", () => {
   });
 });
 
-module.exports.handler = serverless(app);
+module.exports = serverless(app);
