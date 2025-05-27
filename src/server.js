@@ -15,12 +15,8 @@ process.on("uncaughtException", (err) => {
 // Connect to MongoDB
 connectDB();
 
-// Start server
-// const server = app.listen(config.port, () => {
-//   logger.info(
-//     `Server running in ${config.nodeEnv} mode on port ${config.port}`
-//   );
-// });
+// For serverless deployment, we don't need to create a server
+// The serverless function will handle the requests
 
 // Socket.io setup
 // const io = require("socket.io")(server, {
@@ -38,17 +34,15 @@ connectDB();
 process.on("unhandledRejection", (err) => {
   logger.error("UNHANDLED REJECTION! 💥 Shutting down...");
   logger.error(err.name, err.message, err.stack);
-  // server.close(() => {
-  //   process.exit(1);
-  // });
+  process.exit(1);
 });
 
 // Handle SIGTERM signal
 process.on("SIGTERM", () => {
   logger.info("👋 SIGTERM RECEIVED. Shutting down gracefully");
-  // server.close(() => {
-  //   logger.info("💥 Process terminated!");
-  // });
+  logger.info("💥 Process terminated!");
+  process.exit(0);
 });
 
+// Export the serverless handler
 module.exports = serverless(app);
