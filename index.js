@@ -15,11 +15,11 @@ process.on("uncaughtException", (err) => {
 connectDB();
 
 // Start server
-const server = app.listen(config.port, () => {
-  logger.info(
-    `Server running in ${config.nodeEnv} mode on port ${config.port}`
-  );
-});
+// const server = app.listen(config.port, () => {
+//   logger.info(
+//     `Server running in ${config.nodeEnv} mode on port ${config.port}`
+//   );
+// });
 
 // Socket.io setup
 // const io = require("socket.io")(server, {
