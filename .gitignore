@@ -24,6 +24,7 @@ build/
 tmp/
 uploads/*
 !uploads/.gitkeep
+info_docs/*
 
 # Editor specific
 .idea/
