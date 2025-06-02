@@ -1,17 +1,6 @@
 const logger = require("../utils/logger");
 const config = require("../config/config");
 
-class AppError extends Error {
-  constructor(message, statusCode) {
-    super(message);
-    this.statusCode = statusCode;
-    this.status = `${statusCode}`.startsWith("4") ? "fail" : "error";
-    this.isOperational = true;
-
-    Error.captureStackTrace(this, this.constructor);
-  }
-}
-
 // Handle MongoDB cast errors
 const handleCastErrorDB = (err) => {
   const message = `Invalid ${err.path}: ${err.value}`;
@@ -87,4 +76,4 @@ const errorHandler = (err, req, res, next) => {
   }
 };
 
-module.exports = { AppError, errorHandler };
+module.exports = { errorHandler };

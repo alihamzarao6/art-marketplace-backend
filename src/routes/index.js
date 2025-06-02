@@ -3,7 +3,7 @@ const router = express.Router();
 
 // Import all route modules
 const authRoutes = require("./auth");
-// const artRoutes = require("./artwork");
+const artworkRoutes = require("./artwork");
 // const artistRoutes = require("./artists");
 // const userRoutes = require("./users");
 // const adminRoutes = require("./admin");
@@ -15,7 +15,7 @@ const authRoutes = require("./auth");
 
 // Mount routes
 router.use("/auth", authRoutes);
-// router.use("/art", artRoutes);
+router.use("/artwork", artworkRoutes);
 // router.use("/artists", artistRoutes);
 // router.use("/users", userRoutes);
 // router.use("/admin", adminRoutes);
