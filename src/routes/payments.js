@@ -28,7 +28,7 @@ router.post(
 );
 
 router.post(
-  "/create-purchase-session/:artworkId",
+  "/create-purchase-session",
   validateCreatePurchaseSession,
   paymentController.createPurchaseSession
 );

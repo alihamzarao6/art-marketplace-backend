@@ -171,7 +171,7 @@ class PaymentService {
       }
 
       if (artwork.status !== "approved") {
-        throw new AppError("Artwork is not available for puschase", 400);
+        throw new AppError("Artwork is not available for purchase", 400);
       }
 
       if (artwork.soldAt) {
@@ -183,8 +183,8 @@ class PaymentService {
       }
 
       // Get buyer and ensure Stripe Customer
-      const buyer = User.findById(buyerId);
-      const customerId = this.ensureStripeCustomer(buyer);
+      const buyer = await User.findById(buyerId);
+      const customerId = await this.ensureStripeCustomer(buyer);
 
       // Calculate platform commission (5% for example)
       const platformCommission = Math.round(artwork.price * 0.05);
@@ -214,7 +214,7 @@ class PaymentService {
           buyerId: buyerId,
           sellerId: artwork.artist._id.toString(),
         }),
-        list_items: [
+        line_items: [
           {
             price_data: {
               currency: "eur",
@@ -335,8 +335,12 @@ class PaymentService {
 
   // Handle sale payment success
   async handleSaleSuccess(paymentIntent, artworkId, buyerId, sellerId) {
+    const session = await mongoose.startSession();
+
     try {
-      // Update transaction status
+      session.startTransaction();
+
+      // Update transaction status (within transaction)
       await Transaction.updateOne(
         { paymentIntent: paymentIntent.id },
         {
@@ -346,10 +350,11 @@ class PaymentService {
             stripe_payment_method: paymentIntent.payment_method,
             stripe_receipt_url: paymentIntent.charges.data[0]?.receipt_url,
           },
-        }
+        },
+        { session }
       );
 
-      // Update artwork as sold
+      // Update artwork as sold (within transaction)
       const artwork = await Artwork.findByIdAndUpdate(
         artworkId,
         {
@@ -358,43 +363,65 @@ class PaymentService {
         },
         {
           new: true,
+          session,
         }
       );
 
       // Create traceability record for ownership transfer
       const transactionHash = TraceabilityRecord.generateTransactionHash();
-      await TraceabilityRecord.create({
-        artworkId,
-        fromUserId: sellerId,
-        toUserId: buyerId,
-        transactionType: "sold",
-        transactionHash,
-        additionalData: {
-          price: artwork.price,
-          paymentIntent: paymentIntent.id,
-          saleDate: new Date(),
-        },
-      });
+      await TraceabilityRecord.create(
+        [
+          {
+            artworkId,
+            fromUserId: sellerId,
+            toUserId: buyerId,
+            transactionType: "sold",
+            transactionHash,
+            additionalData: {
+              price: artwork.price,
+              paymentIntent: paymentIntent.id,
+              saleDate: new Date(),
+            },
+          },
+        ],
+        { session }
+      );
+
+      // If we reach here, all operations succeeded
+      await session.commitTransaction();
 
       // Add payment confirmation job
       const transaction = await Transaction.findOne({
         paymentIntent: paymentIntent.id,
       });
+
       if (transaction) {
         await addPaymentConfirmationJob(transaction._id, "sale");
-      } else {
-        await addFailedPaymentJob(
-          transaction._id,
-          "Payment failed due to some technical issue"
-        );
       }
 
       logger.info(
         `Sale completed for artwork ${artworkId}, transferred from ${sellerId} to ${buyerId}`
       );
     } catch (error) {
+      // Rollback all changes if anything fails
+      await session.abortTransaction();
       logger.error("Error handling purchase payment success:", error);
+
+      // Add failed payment job
+      const transaction = await Transaction.findOne({
+        paymentIntent: paymentIntent.id,
+      });
+
+      if (transaction) {
+        await addFailedPaymentJob(
+          transaction._id,
+          "Payment processing failed due to database error"
+        );
+      }
+
       throw error;
+    } finally {
+      session.endSession();
     }
   }
 

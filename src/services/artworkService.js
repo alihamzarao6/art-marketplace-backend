@@ -11,38 +11,61 @@ const logger = require("../utils/logger");
 
 class ArtworkService {
   async createArtwork(artistId, artworkData) {
+    // Start a database session for transaction
+    const session = await mongoose.startSession();
+
     try {
+      // Start transaction
+      session.startTransaction();
+
       // Create artwork with pending status
-      const artwork = await Artwork.create({
-        ...artworkData,
-        artist: artistId,
-        status: "pending",
-        currentOwner: artistId,
-      });
+      const artwork = await Artwork.create(
+        [
+          {
+            ...artworkData,
+            artist: artistId,
+            status: "pending",
+            currentOwner: artistId,
+          },
+        ],
+        { session }
+      );
 
       // Create initial traceability record
       const transactionHash = TraceabilityRecord.generateTransactionHash();
-      await TraceabilityRecord.create({
-        artworkId: artwork._id,
-        fromUserId: artistId,
-        toUserId: artistId,
-        transactionType: "created",
-        transactionHash,
-        additionalData: {
-          price: artworkData.price,
-          condition: "new",
-        },
-      });
+      await TraceabilityRecord.create(
+        [
+          {
+            artworkId: artwork[0]._id,
+            fromUserId: artistId,
+            toUserId: artistId,
+            transactionType: "created",
+            transactionHash,
+            additionalData: {
+              price: artworkData.price,
+              condition: "new",
+            },
+          },
+        ],
+        { session }
+      );
+
+      // If we get here, both operations succeeded. Commit the transaction
+      await session.commitTransaction();
 
       // Populate artist details
-      await artwork.populate("artist", "username email profile");
+      await artwork[0].populate("artist", "username email profile");
 
       logger.info(`Artwork created: ${artwork._id} by artist ${artistId}`);
 
-      return artwork;
+      return artwork[0];
     } catch (error) {
+      // If anything fails, rollback the entire transaction
+      await session.abortTransaction();
       logger.error("Error creating artwork:", error);
       throw error;
+    } finally {
+      session.endSession();
     }
   }
 

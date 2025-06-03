@@ -1,3 +1,4 @@
+const Transaction = require("../models/Transaction");
 const paymentService = require("../services/paymentService");
 const AppError = require("../utils/appError");
 const logger = require("../utils/logger");

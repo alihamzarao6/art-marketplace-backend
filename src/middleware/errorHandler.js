@@ -1,5 +1,6 @@
 const logger = require("../utils/logger");
 const config = require("../config/config");
+const AppError = require("../utils/appError");
 
 // Handle MongoDB cast errors
 const handleCastErrorDB = (err) => {

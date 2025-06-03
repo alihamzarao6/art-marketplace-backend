@@ -1,4 +1,5 @@
 const cloudinary = require("cloudinary").v2;
+const logger = require("../utils/logger");
 const config = require("./config");
 
 cloudinary.config({
