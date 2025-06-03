@@ -68,7 +68,7 @@ jobs:
           
           # Stop existing application
           echo "Stopping existing application..."
-          pm2 stop art-marketplace-api || echo "App not running"
+          pm2 stop 3rd-hand-art-marketplace-api || echo "App not running"
           
           # Start application
           echo "Starting application..."

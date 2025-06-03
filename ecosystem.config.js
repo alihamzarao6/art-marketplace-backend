@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: "art-marketplace-api",
+      name: "3rd-hand-art-marketplace-api",
       script: "./index.js",
       instances: 1,
       exec_mode: "fork",
