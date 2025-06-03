@@ -37,6 +37,8 @@ const traceabilityRecordSchema = new mongoose.Schema(
       notes: String,
       condition: String,
       certificate: Object,
+      paymentIntent: String,
+      saleDate: Date,
     },
   },
   {

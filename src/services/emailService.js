@@ -111,6 +111,135 @@ class EmailService {
       html,
     });
   }
+
+  // Send listing fee confirmation
+  async sendListingFeeConfirmation(email, username, artworkTitle, amount) {
+    const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #333;">Payment Confirmed!</h2>
+      <p>Hello ${username},</p>
+      <p>Your listing fee payment has been successfully processed.</p>
+      <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">
+        <h3 style="margin: 0 0 10px 0;">Payment Details:</h3>
+        <p><strong>Artwork:</strong> ${artworkTitle}</p>
+        <p><strong>Amount:</strong> €${amount}</p>
+        <p><strong>Type:</strong> Listing Fee</p>
+      </div>
+      <p>Your artwork is now pending admin approval. You'll receive another email once it's reviewed.</p>
+      <p>Best regards,<br>Art Marketplace Team</p>
+    </div>
+  `;
+
+    await this.sendEmail({
+      email,
+      subject: "Listing Fee Payment Confirmed - 3rd Hand Art Marketplace",
+      html,
+    });
+  }
+
+  // Send purchase confirmation
+  async sendPurchaseConfirmation(email, username, artworkTitle, amount) {
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #28a745;">Purchase Successful!</h2>
+        <p>Hello ${username},</p>
+        <p>Congratulations! Your artwork purchase has been completed successfully.</p>
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">
+          <h3 style="margin: 0 0 10px 0;">Purchase Details:</h3>
+          <p><strong>Artwork:</strong> ${artworkTitle}</p>
+          <p><strong>Amount Paid:</strong> €${amount}</p>
+          <p><strong>Purchase Date:</strong> ${new Date().toLocaleDateString()}</p>
+        </div>
+        <p>The artist will be in touch with you soon regarding delivery arrangements.</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${
+            config.frontendUrl
+          }/dashboard/purchases" style="background-color: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">View Purchase History</a>
+        </div>
+        <p>Thank you for supporting artists on our platform!</p>
+        <p>Best regards,<br>Art Marketplace Team</p>
+      </div>
+    `;
+
+    await this.sendEmail({
+      email,
+      subject: "Artwork Purchase Confirmed - #rd Hand Art Marketplace",
+      html,
+    });
+  }
+
+  // Send sale notification to artist
+  async sendSaleNotification(email, username, artworkTitle, amount) {
+    const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #007bff;">Great News! Your Artwork Sold!</h2>
+      <p>Hello ${username},</p>
+      <p>Congratulations! Your artwork has been sold on Art Marketplace.</p>
+      <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">
+        <h3 style="margin: 0 0 10px 0;">Sale Details:</h3>
+        <p><strong>Artwork:</strong> ${artworkTitle}</p>
+        <p><strong>Sale Price:</strong> €${amount}</p>
+        <p><strong>Sale Date:</strong> ${new Date().toLocaleDateString()}</p>
+        <p><strong>Your Earnings:</strong> €${(amount * 0.95).toFixed(
+          2
+        )} (after 5% platform fee)</p>
+      </div>
+      <p>Please contact the buyer to arrange delivery. You can find their contact information in your dashboard.</p>
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${
+          config.frontendUrl
+        }/dashboard/sales" style="background-color: #007bff; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">View Sales Dashboard</a>
+      </div>
+      <p>Thank you for being part of our artist community!</p>
+      <p>Best regards,<br>Art Marketplace Team</p>
+    </div>
+  `;
+
+    await this.sendEmail({
+      email,
+      subject: "Your Artwork Has Been Sold! - 3rd Hand Art Marketplace",
+      html,
+    });
+  }
+
+  // Send payment failed notification
+  async sendPaymentFailedNotification(
+    email,
+    username,
+    artworkTitle,
+    transactionType
+  ) {
+    const typeLabel =
+      transactionType === "listing_fee" ? "Listing Fee" : "Purchase";
+
+    const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #dc3545;">Payment Failed</h2>
+      <p>Hello ${username},</p>
+      <p>Unfortunately, your ${typeLabel.toLowerCase()} payment could not be processed.</p>
+      <div style="background-color: #f8d7da; padding: 20px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #dc3545;">
+        <h3 style="margin: 0 0 10px 0;">Failed Payment Details:</h3>
+        <p><strong>Artwork:</strong> ${artworkTitle}</p>
+        <p><strong>Payment Type:</strong> ${typeLabel}</p>
+        <p><strong>Failed At:</strong> ${new Date().toLocaleString()}</p>
+      </div>
+      <p>Please check your payment method and try again. If you continue to experience issues, please contact our support team.</p>
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${
+          config.frontendUrl
+        }/payment/retry" style="background-color: #dc3545; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">Try Again</a>
+      </div>
+      <p>If you need assistance, please don't hesitate to contact us.</p>
+      <p>Best regards,<br>Art Marketplace Team</p>
+    </div>
+  `;
+
+    await this.sendEmail({
+      email,
+      subject: `Payment Failed - ${typeLabel} - 3rd Hand Art Marketplace`,
+      html,
+    });
+  }
 }
 
 module.exports = new EmailService();

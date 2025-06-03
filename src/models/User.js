@@ -71,6 +71,10 @@ const userSchema = new mongoose.Schema(
       type: Date,
       select: false,
     },
+    stripeCustomerId: {
+      type: String,
+      select: false, // Don't return in normal queries for security
+    },
   },
   {
     timestamps: true,

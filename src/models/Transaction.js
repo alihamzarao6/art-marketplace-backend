@@ -43,9 +43,15 @@ const transactionSchema = new mongoose.Schema(
     },
     metadata: {
       stripe_payment_id: String,
+      stripe_session_id: String,
+      artwork_title: String,
       receipt_url: String,
       payment_method: String,
       additional_info: Object,
+      platform_commission: Number,
+      artist_amount: Number,
+      stripe_payment_method: String,
+      stripe_receipt_url: String,
     },
   },
   {

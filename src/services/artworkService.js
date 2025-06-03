@@ -1,4 +1,4 @@
-const mongoose = require("mongoose")
+const mongoose = require("mongoose");
 const Artwork = require("../models/Artwork");
 const User = require("../models/User");
 const ListingPayment = require("../models/ListingPayment");
@@ -43,6 +43,20 @@ class ArtworkService {
     } catch (error) {
       logger.error("Error creating artwork:", error);
       throw error;
+    }
+  }
+
+  async checkListingFeePaid(artworkId) {
+    try {
+      const payment = await ListingPayment.findOne({
+        artwork: artworkId,
+        status: "completed",
+      });
+
+      return !!payment;
+    } catch (error) {
+      logger.error("Error checking listing fee payment:", error);
+      return false;
     }
   }
 
@@ -269,7 +283,7 @@ class ArtworkService {
   // Get artworks by artist
   async getArtworksByArtist(artistId, query = {}) {
     console.log("getArtworksByArtist service artistId", artistId);
-    
+
     try {
       const {
         page = 1,

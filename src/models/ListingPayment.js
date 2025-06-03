@@ -16,6 +16,10 @@ const listingPaymentSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    sessionId: {
+      type: String,
+      select: false, // Don't return in normal queries for security
+    },
     amount: {
       type: Number,
       default: 100, // €1 in cents
@@ -30,6 +34,10 @@ const listingPaymentSchema = new mongoose.Schema(
       default: Date.now,
     },
     paidAt: Date,
+    metadata: {
+      stripe_payment_method: String,
+      stripe_receipt_url: String,
+    },
   },
   {
     timestamps: true,
