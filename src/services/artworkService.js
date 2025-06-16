@@ -447,7 +447,9 @@ class ArtworkService {
               $sum: { $cond: [{ $eq: ["$status", "rejected"] }, 1, 0] },
             },
             soldArtworks: {
-              $sum: { $cond: [{ $ne: ["$soldAt", null] }, 1, 0] },
+              $sum: {
+                $cond: [{ $eq: [{ $type: "$soldAt" }, "date"] }, 1, 0],
+              },
             },
             averagePrice: { $avg: "$price" },
             totalValue: { $sum: "$price" },

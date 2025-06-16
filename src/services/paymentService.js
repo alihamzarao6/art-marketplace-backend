@@ -292,26 +292,36 @@ class PaymentService {
   async handleListingFeeSuccess(paymentIntent, artworkId, userId) {
     try {
       await ListingPayment.updateOne(
-        { paymentIntent: paymentIntent.id },
+        {
+          artist: userId,
+          artwork: artworkId,
+          status: "pending",
+        },
         {
           status: "completed",
           paidAt: new Date(),
           metadata: {
             stripe_payment_method: paymentIntent.payment_method,
-            stripe_receipt_url: paymentIntent.charges.data[0]?.receipt_url,
+            stripe_receipt_url:
+              paymentIntent.charges?.data?.[0]?.receipt_url || null,
           },
         }
       );
 
       // Update transaction status
       await Transaction.updateOne(
-        { paymentIntent: paymentIntent.id },
+        {
+          seller: userId,
+          artwork: artworkId,
+          status: "pending",
+        },
         {
           status: "completed",
           metadata: {
             ...paymentIntent.metadata,
             stripe_payment_method: paymentIntent.payment_method,
-            stripe_receipt_url: paymentIntent.charges.data[0]?.receipt_url,
+            stripe_receipt_url:
+              paymentIntent.charges?.data?.[0]?.receipt_url || null,
           },
         }
       );
@@ -342,13 +352,18 @@ class PaymentService {
 
       // Update transaction status (within transaction)
       await Transaction.updateOne(
-        { paymentIntent: paymentIntent.id },
+        {
+          seller: sellerId,
+          artwork: artworkId,
+          status: "pending",
+        },
         {
           status: "completed",
           metadata: {
             ...paymentIntent.metadata,
             stripe_payment_method: paymentIntent.payment_method,
-            stripe_receipt_url: paymentIntent.charges.data[0]?.receipt_url,
+            stripe_receipt_url:
+              paymentIntent.charges?.data?.[0]?.receipt_url || null,
           },
         },
         { session }

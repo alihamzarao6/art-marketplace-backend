@@ -48,19 +48,16 @@ const createPurchaseSession = async (req, res, next) => {
 // Handle Stripe webhook
 const handleWebhook = async (req, res, next) => {
   const sig = req.headers["stripe-signature"];
-  const { paymentConfig } = require("../config/stripe");
-  const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+  const { stripe, paymentConfig } = require("../config/stripe");
 
   try {
     const event = stripe.webhooks.constructEvent(
       req.body,
       sig,
-      // paymentConfig.webhookEndpointSecret
-      process.env.STRIPE_WEBHOOK_SECRET
+      paymentConfig.webhookEndpointSecret
     );
 
     logger.info(`Stripe webhook received: ${event.type}`);
-    console.log(`Stripe webhook received: ${event.type}`);
 
     switch (event.type) {
       case "payment_intent.succeeded":
