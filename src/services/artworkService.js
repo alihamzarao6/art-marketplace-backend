@@ -56,7 +56,7 @@ class ArtworkService {
       // Populate artist details
       await artwork[0].populate("artist", "username email profile");
 
-      logger.info(`Artwork created: ${artwork._id} by artist ${artistId}`);
+      logger.info(`Artwork created: ${artwork[0]._id} by artist ${artistId}`);
 
       return artwork[0];
     } catch (error) {
