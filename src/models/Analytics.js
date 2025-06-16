@@ -1,4 +1,3 @@
-// Platform analytics data
 const mongoose = require("mongoose");
 
 const analyticsSchema = new mongoose.Schema(
@@ -71,20 +70,6 @@ const analyticsSchema = new mongoose.Schema(
       },
     },
 
-    // User behavior analytics
-    userEngagement: {
-      averageSessionDuration: Number,
-      bounceRate: Number,
-      returnUserRate: Number,
-      popularArtCategories: [String],
-      searchTerms: [
-        {
-          term: String,
-          count: Number,
-        },
-      ],
-    },
-
     // Artist performance metrics
     artistMetrics: {
       topSellingArtists: [
@@ -98,26 +83,6 @@ const analyticsSchema = new mongoose.Schema(
         },
       ],
       averageArtworkPrice: Number,
-      approvalRate: Number,
-      averageTimeToSell: Number,
-    },
-
-    // Geographic data
-    geographicData: {
-      topCountries: [
-        {
-          country: String,
-          userCount: Number,
-          salesCount: Number,
-        },
-      ],
-      topCities: [
-        {
-          city: String,
-          userCount: Number,
-          salesCount: Number,
-        },
-      ],
     },
 
     // Revenue breakdown
@@ -138,14 +103,6 @@ const analyticsSchema = new mongoose.Schema(
         type: Number,
         default: 0,
       },
-    },
-
-    // Conversion metrics
-    conversionMetrics: {
-      visitorToUserRate: Number,
-      userToArtistRate: Number,
-      artworkViewToSaleRate: Number,
-      messageToSaleRate: Number,
     },
 
     // Time period this analytics record covers

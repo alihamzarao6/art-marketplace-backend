@@ -9,7 +9,6 @@ const config = require("./config/config");
 const { errorHandler } = require("./middleware/errorHandler");
 const routes = require("./routes");
 
-// Initialize express app
 const app = express();
 
 // Set security HTTP headers
@@ -20,16 +19,31 @@ if (config.nodeEnv === "development") {
   app.use(morgan("dev"));
 }
 
-// Enable CORS
 app.use(cors());
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: config.security.rateLimitWindow * 60 * 1000, // in minutes
-  max: config.security.rateLimitMax, // max requests per windowMs
-  message: "Too many requests from this IP, please try again later!",
-});
-app.use("/api", limiter);
+// Configure trust proxy based on environment
+if (config.nodeEnv === "production") {
+  // In production, trust only the first proxy (most cloud platforms)
+  app.set("trust proxy", 1);
+} else {
+  // In development, disable rate limiting entirely
+  app.set("trust proxy", false);
+}
+
+// configure rate limiting
+if (config.nodeEnv === "production") {
+  const limiter = rateLimit({
+    windowMs: config.security.rateLimitWindow * 60 * 1000,
+    max: config.security.rateLimitMax,
+    message: "Too many requests from this IP, please try again later!",
+  });
+  app.use("/api", limiter);
+} else {
+  console.log("🚫 Rate limiting disabled in development");
+}
+
+// Stripe webhook needs raw body, not parsed JSON
+app.use("/api/payments/webhook", express.raw({ type: "application/json" }), require("./routes/payments").webhookHandler);
 
 // Body parser
 app.use(express.json({ limit: "10mb" }));

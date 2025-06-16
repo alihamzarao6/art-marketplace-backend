@@ -10,13 +10,6 @@ const {
 
 const router = express.Router();
 
-// Webhook route (no authentication - Stripe calls this)
-router.post(
-  "/webhook",
-  express.raw({ type: "application/json" }),
-  paymentController.handleWebhook
-);
-
 // Protected routes (authentication required)
 router.use(protect);
 
@@ -50,3 +43,9 @@ router.get(
 router.get("/stats", paymentController.getPaymentStats);
 
 module.exports = router;
+
+// Export webhook handler separately for direct mounting
+module.exports.webhookHandler = [
+  express.raw({ type: "application/json" }),
+  paymentController.handleWebhook
+];

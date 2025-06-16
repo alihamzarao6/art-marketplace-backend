@@ -36,6 +36,11 @@ const artworkSchema = new mongoose.Schema(
       default: Date.now,
     },
     approvedAt: Date,
+    rejectedAt: Date,
+    rejectionReason: {
+      type: String,
+      trim: true,
+    },
     soldAt: Date,
     currentOwner: {
       type: mongoose.Schema.Types.ObjectId,
@@ -74,6 +79,8 @@ const artworkSchema = new mongoose.Schema(
 
 // Index for faster searches
 artworkSchema.index({ title: "text", description: "text", tags: "text" });
+artworkSchema.index({ status: 1, createdAt: -1 });
+artworkSchema.index({ artist: 1, status: 1 });
 
 // Virtual for artwork traceability history
 artworkSchema.virtual("traceabilityHistory", {
