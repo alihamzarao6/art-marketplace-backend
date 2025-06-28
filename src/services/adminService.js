@@ -26,6 +26,11 @@ class AdminService {
         throw new AppError("Artwork is not pending approval", 400);
       }
 
+      // Check artwork's own payment status
+      if (artwork.listingFeeStatus !== "paid") {
+        throw new AppError("Listing fee must be paid before approval", 400);
+      }
+
       const listingPayment = await ListingPayment.findOne({
         artwork: artworkId,
         status: "completed",
@@ -126,7 +131,7 @@ class AdminService {
       } = query;
 
       // Build filter
-      const filter = { status: "pending" };
+      const filter = { status: "pending", listingFeeStatus: "paid" };
 
       // Price filtering
       if (minPrice || maxPrice) {
@@ -155,15 +160,6 @@ class AdminService {
         .skip(skip)
         .limit(parseInt(limit))
         .lean();
-
-      // Check listing fee payment for each artwork
-      for (let artwork of artworks) {
-        const listingPayment = await ListingPayment.findOne({
-          artwork: artwork._id,
-          status: "completed",
-        });
-        artwork.listingFeePaid = !!listingPayment;
-      }
 
       const total = await Artwork.countDocuments(filter);
 

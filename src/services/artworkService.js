@@ -26,6 +26,7 @@ class ArtworkService {
             artist: artistId,
             status: "pending",
             currentOwner: artistId,
+            listingFeeStatus: "unpaid",
           },
         ],
         { session }
@@ -69,20 +70,6 @@ class ArtworkService {
     }
   }
 
-  async checkListingFeePaid(artworkId) {
-    try {
-      const payment = await ListingPayment.findOne({
-        artwork: artworkId,
-        status: "completed",
-      });
-
-      return !!payment;
-    } catch (error) {
-      logger.error("Error checking listing fee payment:", error);
-      return false;
-    }
-  }
-
   // Get all artworks with pagination and filtering
   async getArtworks(query) {
     try {
@@ -110,7 +97,7 @@ class ArtworkService {
       } = query;
 
       // Build filter object
-      const filter = { status };
+      const filter = { status, listingFeeStatus: "paid" };
 
       // Price Filter
       if (minPrice || maxPrice) {
@@ -314,9 +301,15 @@ class ArtworkService {
         sort = "-createdAt",
         status,
         includePrivate = false,
+        includeUnpaid = false,
       } = query;
 
       const filter = { artist: artistId };
+
+      // Handle payment status filtering
+      if (!includeUnpaid) {
+        filter.listingFeeStatus = "paid";
+      }
 
       if (status) {
         filter.status = status;

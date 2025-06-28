@@ -55,47 +55,14 @@ const formatArtworkResponse = (artwork, includePrivateFields = false) => {
     formatted.soldAt = artwork.soldAt;
     formatted.rejectedAt = artwork.rejectedAt;
     formatted.rejectionReason = artwork.rejectionReason;
+    formatted.listingFeeStatus = artwork.listingFeeStatus;
+    formatted.listingFeePaidAt = artwork.listingFeePaidAt;
   }
 
   return formatted;
 };
 
-// Generate artwork thumbnail URL from main image
-const generateThumbnailUrl = (imageUrl, size = "300x300") => {
-  if (!imageUrl || !imageUrl.includes("cloudinary.com")) {
-    return imageUrl;
-  }
-
-  // Insert transformation parameters into Cloudinary URL
-  const parts = imageUrl.split("/upload/");
-  if (parts.length === 2) {
-    return `${parts[0]}/upload/w_${size.split("x")[0]},h_${
-      size.split("x")[1]
-    },c_fill,f_auto,q_auto/${parts[1]}`;
-  }
-
-  return imageUrl;
-};
-
-// Validate artwork data completeness
-const validateArtworkCompleteness = (artwork) => {
-  const required = ["title", "description", "price", "images"];
-  const missing = required.filter(
-    (field) =>
-      !artwork[field] ||
-      (Array.isArray(artwork[field]) && artwork[field].length === 0)
-  );
-
-  if (missing.length > 0) {
-    throw new AppError(`Missing required fields: ${missing.join(", ")}`, 400);
-  }
-
-  return true;
-};
-
 module.exports = {
   validateImageDimensions,
   formatArtworkResponse,
-  generateThumbnailUrl,
-  validateArtworkCompleteness,
 };

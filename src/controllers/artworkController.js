@@ -1,3 +1,4 @@
+const Artwork = require("../models/Artwork");
 const artworkService = require("../services/artworkService");
 const AppError = require("../utils/appError");
 const logger = require("../utils/logger");
@@ -130,6 +131,7 @@ const getMyArtworks = async (req, res, next) => {
     const result = await artworkService.getArtworksByArtist(req.user.id, {
       ...req.query,
       includePrivate: true,
+      includeUnpaid: false,
     });
 
     res.status(200).json({
@@ -138,6 +140,30 @@ const getMyArtworks = async (req, res, next) => {
       data: {
         artworks: result.artworks,
         pagination: result.pagination,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// method to get unpaid artworks for artist
+const getUnpaidArtworks = async (req, res, next) => {
+  try {
+    if (req.user.role !== "artist") {
+      return next(new AppError("Only artists can access unpaid artworks", 403));
+    }
+
+    const artworks = await Artwork.find({
+      artist: req.user.id,
+      listingFeeStatus: { $in: ["unpaid", "failed"] },
+    }).populate("artist", "username profile");
+
+    res.status(200).json({
+      status: "success",
+      results: artworks.length,
+      data: {
+        artworks,
       },
     });
   } catch (error) {
@@ -215,6 +241,7 @@ module.exports = {
   deleteArtwork,
   getArtworksByArtist,
   getMyArtworks,
+  getUnpaidArtworks,
   searchArtworks,
   getArtworkStats,
   toggleArtworkLike,

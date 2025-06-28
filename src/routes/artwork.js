@@ -51,6 +51,13 @@ router.get(
   artworkController.getMyArtworks
 );
 
+// route for unpaid artworks
+router.get(
+  "/my/unpaid",
+  restrictTo("artist"),
+  artworkController.getUnpaidArtworks
+);
+
 // Artwork management routes (only artwork owner can access)
 router.patch(
   "/:id",

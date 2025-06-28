@@ -69,13 +69,15 @@ class PaymentService {
       }
 
       // Check if already paid
-      const existingPayment = await ListingPayment.findOne({
-        artwork: artworkId,
-        status: "completed",
-      });
-
-      if (existingPayment) {
+      if (artwork.listingFeeStatus === "paid") {
         throw new AppError("Listing fee already paid for this artwork", 400);
+      }
+
+      if (artwork.listingFeeStatus === "pending") {
+        throw new AppError(
+          "Payment session already in progress. Please complete or wait for current session to expire.",
+          400
+        );
       }
 
       // Get user and ensure Stripe customer
@@ -121,6 +123,11 @@ class PaymentService {
           metadata: paymentIntent.metadata,
         },
       });
+
+      // Update artwork payment status when session is created
+      artwork.listingFeeStatus = "pending";
+      artwork.listingFeePaymentIntent = paymentIntent.id;
+      await artwork.save();
 
       // Record listing payment in database
       await ListingPayment.create({
@@ -291,6 +298,16 @@ class PaymentService {
   // Handle listing fee payment success
   async handleListingFeeSuccess(paymentIntent, artworkId, userId) {
     try {
+      // Update artwork payment status first
+      await Artwork.updateOne(
+        { _id: artworkId },
+        {
+          listingFeeStatus: "paid",
+          listingFeePaidAt: new Date(),
+        }
+      );
+
+      // Update ListingPayment status
       await ListingPayment.updateOne(
         {
           artist: userId,
@@ -326,6 +343,22 @@ class PaymentService {
         }
       );
 
+      // Create traceability record now that payment is confirmed
+      const transactionHash = TraceabilityRecord.generateTransactionHash();
+      await TraceabilityRecord.create({
+        artworkId,
+        fromUserId: userId,
+        toUserId: userId,
+        transactionType: "created",
+        transactionHash,
+        additionalData: {
+          price: (await Artwork.findById(artworkId)).price,
+          condition: "new",
+          paymentIntent: paymentIntent.id,
+          listingFeePaid: true,
+        },
+      });
+
       // payment confirmation job
       const transaction = await Transaction.findOne({
         paymentIntent: paymentIntent.id,
@@ -338,8 +371,47 @@ class PaymentService {
       // Artwork remains pending until admin approval
       logger.info(`Listing fee payment completed for artwork ${artworkId}`);
     } catch (error) {
+      // Handle payment failure
+      await Artwork.updateOne(
+        { _id: artworkId },
+        { listingFeeStatus: "failed" }
+      );
+
       logger.error("Error handling listing fee success:", error);
       throw error;
+    }
+  }
+  // OPTIONAL: method to handle payment failures
+  async handleListingFeeFailure(paymentIntent, artworkId, userId, reason) {
+    try {
+      await Artwork.updateOne(
+        { _id: artworkId },
+        { listingFeeStatus: "failed" }
+      );
+
+      await ListingPayment.updateOne(
+        {
+          artist: userId,
+          artwork: artworkId,
+          paymentIntent: paymentIntent.id,
+        },
+        { status: "failed" }
+      );
+
+      await Transaction.updateOne(
+        {
+          seller: userId,
+          artwork: artworkId,
+          paymentIntent: paymentIntent.id,
+        },
+        { status: "failed" }
+      );
+
+      logger.info(
+        `Listing fee payment failed for artwork ${artworkId}: ${reason}`
+      );
+    } catch (error) {
+      logger.error("Error handling listing fee failure:", error);
     }
   }
 

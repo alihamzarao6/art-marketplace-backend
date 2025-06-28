@@ -26,6 +26,19 @@ const artworkSchema = new mongoose.Schema(
       ref: "User",
       required: [true, "Artist is required"],
     },
+    listingFeeStatus: {
+      type: String,
+      enum: ["unpaid", "pending", "paid", "failed"],
+      default: "unpaid",
+    },
+    listingFeePaymentIntent: {
+      type: String, // Store Stripe payment intent ID
+      default: null,
+    },
+    listingFeePaidAt: {
+      type: Date,
+      default: null,
+    },
     status: {
       type: String,
       enum: ["pending", "approved", "rejected"],
