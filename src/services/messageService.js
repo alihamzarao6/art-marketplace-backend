@@ -174,6 +174,8 @@ class MessageService {
         isSentByMe: message.sender._id.toString() === userId,
       }));
 
+      const total = await Message.countDocuments({ conversationId });
+
       return {
         messages: formattedMessages,
         pagination: {

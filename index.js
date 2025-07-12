@@ -39,7 +39,14 @@ mongoose
     // Socket.io setup AFTER server is created
     const io = require("socket.io")(server, {
       cors: {
-        origin: config.frontendUrl || "http://localhost:3000",
+        // origin: config.frontendUrl || "http://localhost:3000",
+        origin: [
+          config.frontendUrl,
+          "http://localhost:3000",
+          "http://127.0.0.1:5500",
+          "file://",
+          "*",
+        ],
         methods: ["GET", "POST"],
         credentials: true,
       },

@@ -146,9 +146,6 @@ const markMessagesAsRead = async (req, res, next) => {
     res.status(200).json({
       status: "success",
       message: "Messages marked as read successfully",
-      data: {
-        unreadMessages: result.unreadMessages,
-      },
     });
   } catch (error) {
     next(error);
@@ -162,7 +159,7 @@ const deleteMessage = async (req, res, next) => {
     const userId = req.user.id;
     const { messageId } = req.params;
 
-    const result = await messageService.deleteMessage(userId, messageId);
+    const result = await messageService.deleteMessage(messageId, userId);
 
     res.status(200).json({
       status: "success",
