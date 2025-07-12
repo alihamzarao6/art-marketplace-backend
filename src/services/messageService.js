@@ -423,6 +423,49 @@ class MessageService {
       throw error;
     }
   }
+
+  // Search within a specific conversation
+  async searchWithinConversation(
+    userId,
+    otherUserId,
+    searchQuery,
+    page = 1,
+    limit = 20
+  ) {
+    try {
+      const conversationId = Message.createConversationId(userId, otherUserId);
+      const skip = (page - 1) * limit;
+
+      const messages = await Message.find({
+        conversationId,
+        content: { $regex: searchQuery, $options: "i" },
+        deleted: { $ne: true },
+      })
+        .populate("sender receiver", "username role")
+        .sort({ timestamp: -1 })
+        .skip(skip)
+        .limit(limit);
+
+      const total = await Message.countDocuments({
+        conversationId,
+        content: { $regex: searchQuery, $options: "i" },
+        deleted: { $ne: true },
+      });
+
+      return {
+        messages,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      };
+    } catch (error) {
+      logger.error("Error searching within conversation:", error);
+      throw error;
+    }
+  }
 }
 
 module.exports = new MessageService();

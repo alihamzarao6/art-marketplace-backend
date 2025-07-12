@@ -226,6 +226,22 @@ class ChatHandler {
         content
       );
 
+      // Update message status to 'delivered' if receiver is online
+      const onlineHandler = require("./onlineHandler");
+      if (onlineHandler.isUserOnline(receiverId)) {
+        try {
+          const Message = require("../models/Message");
+          await Message.findByIdAndUpdate(result.message.id, {
+            messageStatus: "delivered",
+          });
+
+          // Update the result object to reflect the status change
+          result.message.messageStatus = "delivered";
+        } catch (error) {
+          logger.error("Error updating message status to delivered:", error);
+        }
+      }
+
       // Stop typing indicator
       this.stopTyping(socket, receiverId, io);
 
@@ -276,8 +292,28 @@ class ChatHandler {
         return;
       }
 
+      const conversationId = Message.createConversationId(
+        socket.user.id,
+        otherUserId
+      );
+
+      // Update messages with both read status and message status
+      const Message = require("../models/Message");
+      await Message.updateMany(
+        {
+          conversationId,
+          receiver: socket.user.id,
+          read: false,
+        },
+        {
+          read: true,
+          readAt: new Date(),
+          messageStatus: "read",
+        }
+      );
+
       // Mark messages as read
-      await messageService.markMessagesAsRead(socket.user.id, otherUserId);
+      // await messageService.markMessagesAsRead(socket.user.id, otherUserId);
 
       // Notify sender that messages were read
       const senderRoom = `user_${otherUserId}`;

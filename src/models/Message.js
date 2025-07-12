@@ -71,8 +71,6 @@ const messageSchema = new mongoose.Schema(
     flaggedAt: {
       type: Date,
     },
-
-    // Message metadata
     edited: {
       type: Boolean,
       default: false,
@@ -82,6 +80,11 @@ const messageSchema = new mongoose.Schema(
     },
     originalContent: {
       type: String,
+    },
+    messageStatus: {
+      type: String,
+      enum: ["sent", "delivered", "read"],
+      default: "sent",
     },
   },
   {

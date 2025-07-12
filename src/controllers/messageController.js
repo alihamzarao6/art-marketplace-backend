@@ -268,6 +268,48 @@ const searchConversations = async (req, res, next) => {
   }
 };
 
+const searchWithinConversation = async (req, res, next) => {
+  try {
+    const { userId: otherUserId } = req.params;
+    const { query: searchQuery, page = 1, limit = 20 } = req.query;
+
+    if (!searchQuery || searchQuery.trim().length === 0) {
+      return next(new AppError("Search query is required", 400));
+    }
+
+    // Verify other user exists and has different role
+    const otherUser = await User.findById(otherUserId);
+    if (!otherUser) {
+      return next(new AppError("User not found", 404));
+    }
+
+    if (req.user.role === otherUser.role) {
+      return next(
+        new AppError("Cannot search messages with users of same role", 403)
+      );
+    }
+
+    const result = await messageService.searchWithinConversation(
+      req.user.id,
+      otherUserId,
+      searchQuery,
+      parseInt(page),
+      parseInt(limit)
+    );
+
+    res.status(200).json({
+      status: "success",
+      results: result.messages.length,
+      data: {
+        messages: result.messages,
+        pagination: result.pagination,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   sendMessage,
   getConversations,
@@ -277,4 +319,5 @@ module.exports = {
   toggleBlockUser,
   getUnreadCount,
   searchConversations,
+  searchWithinConversation,
 };

@@ -8,6 +8,7 @@ const {
   validateDeleteMessage,
   validateBlockUser,
   validateSearchConversations,
+  validateSearchWithinConversation,
 } = require("../validators/messageValidator");
 
 const router = express.Router();
@@ -58,5 +59,11 @@ router.put(
 
 // Get unread message count
 router.get("/unread-count", messageController.getUnreadCount);
+
+router.get(
+  "/conversation/:userId/search",
+  validateSearchWithinConversation,
+  messageController.searchWithinConversation
+);
 
 module.exports = router;
