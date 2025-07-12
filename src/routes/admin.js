@@ -54,4 +54,13 @@ router.get(
   adminController.getAllTransactions
 );
 
+router.get("/messages/analytics", adminController.getMessageAnalytics);
+router.get("/messages", adminController.getAllMessages);
+router.get(
+  "/messages/conversation/:conversationId",
+  adminController.getConversationDetails
+);
+router.patch("/messages/:messageId/flag", adminController.toggleMessageFlag);
+router.delete("/messages/:messageId", adminController.adminDeleteMessage);
+
 module.exports = router;

@@ -36,6 +36,53 @@ const messageSchema = new mongoose.Schema(
         url: String,
       },
     ],
+    read: {
+      type: Boolean,
+      default: false,
+    },
+    readAt: {
+      type: Date,
+    },
+    deleted: {
+      type: Boolean,
+      default: false,
+    },
+    deletedAt: {
+      type: Date,
+    },
+    deletedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    deletionReason: {
+      type: String,
+    },
+    flagged: {
+      type: Boolean,
+      default: false,
+    },
+    flagReason: {
+      type: String,
+    },
+    flaggedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    flaggedAt: {
+      type: Date,
+    },
+
+    // Message metadata
+    edited: {
+      type: Boolean,
+      default: false,
+    },
+    editedAt: {
+      type: Date,
+    },
+    originalContent: {
+      type: String,
+    },
   },
   {
     timestamps: true,

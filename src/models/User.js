@@ -75,6 +75,31 @@ const userSchema = new mongoose.Schema(
       type: String,
       select: false, // Don't return in normal queries for security
     },
+    isOnline: {
+      type: Boolean,
+      default: false,
+    },
+    lastSeen: {
+      type: Date,
+      default: Date.now,
+    },
+    blockedUsers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    messageStats: {
+      totalSent: {
+        type: Number,
+        default: 0,
+      },
+      totalReceived: {
+        type: Number,
+        default: 0,
+      },
+      lastMessageAt: Date,
+    },
   },
   {
     timestamps: true,
@@ -82,6 +107,55 @@ const userSchema = new mongoose.Schema(
     toObject: { virtuals: true },
   }
 );
+
+// Index for online status queries
+userSchema.index({ isOnline: 1, lastSeen: -1 });
+
+// Index for blocked users
+userSchema.index({ blockedUsers: 1 });
+
+// Instance method to check if user is blocked
+userSchema.methods.isUserBlocked = function (userId) {
+  return this.blockedUsers && this.blockedUsers.includes(userId);
+};
+
+// Instance method to block a user
+userSchema.methods.blockUser = function (userId) {
+  if (!this.blockedUsers) {
+    this.blockedUsers = [];
+  }
+  if (!this.blockedUsers.includes(userId)) {
+    this.blockedUsers.push(userId);
+  }
+  return this.save();
+};
+
+// Instance method to unblock a user
+userSchema.methods.unblockUser = function (userId) {
+  if (this.blockedUsers) {
+    this.blockedUsers = this.blockedUsers.filter(
+      (id) => id.toString() !== userId.toString()
+    );
+  }
+  return this.save();
+};
+
+// Static method to get online users
+userSchema.statics.getOnlineUsers = function (role = null) {
+  const filter = { isOnline: true };
+  if (role) {
+    filter.role = role;
+  }
+  return this.find(filter).select("username role lastSeen");
+};
+
+// Static method to update user online status
+userSchema.statics.updateOnlineStatus = function (userId, isOnline) {
+  return this.findByIdAndUpdate(userId, {
+    isOnline,
+    lastSeen: new Date(),
+  });
+};
 
 // Virtual property to get all artworks by this user (if artist)
 userSchema.virtual("artworks", {
