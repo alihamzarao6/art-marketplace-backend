@@ -395,21 +395,38 @@ const getMessageAnalytics = async (req, res, next) => {
       },
     ]);
 
-    // Active conversations (most messages)
+    // Active conversations (most messages) - FIXED VERSION
     const activeConversations = await Message.aggregate([
       { $match: { ...dateFilter, deleted: { $ne: true } } },
       {
         $group: {
           _id: "$conversationId",
           messageCount: { $sum: 1 },
-          participants: {
-            $addToSet: { $concat: ["$sender", "-", "$receiver"] },
-          },
+          senders: { $addToSet: "$sender" },
+          receivers: { $addToSet: "$receiver" },
           lastMessage: { $max: "$timestamp" },
+        },
+      },
+      {
+        $addFields: {
+          participantCount: {
+            $size: {
+              $setUnion: ["$senders", "$receivers"],
+            },
+          },
         },
       },
       { $sort: { messageCount: -1 } },
       { $limit: 10 },
+      {
+        $project: {
+          conversationId: "$_id",
+          messageCount: 1,
+          participantCount: 1,
+          lastMessage: 1,
+          _id: 0,
+        },
+      },
     ]);
 
     // Messages over time (daily breakdown)
