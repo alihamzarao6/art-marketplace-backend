@@ -52,6 +52,9 @@ class PaymentService {
     }
   }
 
+  /*
+
+  // TEMPORARILY DISABLED: Listing fee requirement
   // Create listing fee payment session
   async createListingPaymentSession(artworkId, userId) {
     try {
@@ -168,6 +171,8 @@ class PaymentService {
     }
   }
 
+  */
+
   // Create purchase payment session
   async createPurchasePaymentSession(artworkId, buyerId) {
     try {
@@ -278,7 +283,8 @@ class PaymentService {
         paymentIntent.metadata;
 
       if (type === "listing_fee") {
-        await this.handleListingFeeSuccess(paymentIntent, artworkId, userId);
+        // TEMPORARILY DISABLED: Listing fee requirement
+        // await this.handleListingFeeSuccess(paymentIntent, artworkId, userId);
       } else if (type === "sale") {
         await this.handleSaleSuccess(
           paymentIntent,
@@ -295,6 +301,8 @@ class PaymentService {
     }
   }
 
+  /*
+  // TEMPORARILY DISABLED: Listing fee requirement
   // Handle listing fee payment success
   async handleListingFeeSuccess(paymentIntent, artworkId, userId) {
     try {
@@ -381,6 +389,10 @@ class PaymentService {
       throw error;
     }
   }
+  */
+
+  /*
+  // TEMPORARILY DISABLED: Listing fee requirement
   // OPTIONAL: method to handle payment failures
   async handleListingFeeFailure(paymentIntent, artworkId, userId, reason) {
     try {
@@ -414,6 +426,7 @@ class PaymentService {
       logger.error("Error handling listing fee failure:", error);
     }
   }
+  */
 
   // Handle sale payment success
   async handleSaleSuccess(paymentIntent, artworkId, buyerId, sellerId) {

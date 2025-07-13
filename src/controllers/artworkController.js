@@ -131,7 +131,9 @@ const getMyArtworks = async (req, res, next) => {
     const result = await artworkService.getArtworksByArtist(req.user.id, {
       ...req.query,
       includePrivate: true,
-      includeUnpaid: false,
+      // TEMPORARILY DISABLED: Listing fee requirement
+      // includeUnpaid: false,
+      includeUnpaid: true, // Show all artworks regardless of payment status
     });
 
     res.status(200).json({
@@ -147,6 +149,8 @@ const getMyArtworks = async (req, res, next) => {
   }
 };
 
+/*
+// TEMPORARILY DISABLED: Listing fee requirement
 // method to get unpaid artworks for artist
 const getUnpaidArtworks = async (req, res, next) => {
   try {
@@ -170,6 +174,7 @@ const getUnpaidArtworks = async (req, res, next) => {
     next(error);
   }
 };
+*/
 
 // Search artworks
 const searchArtworks = async (req, res, next) => {
@@ -241,7 +246,8 @@ module.exports = {
   deleteArtwork,
   getArtworksByArtist,
   getMyArtworks,
-  getUnpaidArtworks,
+  // TEMPORARILY DISABLED: Listing fee requirement
+  // getUnpaidArtworks,
   searchArtworks,
   getArtworkStats,
   toggleArtworkLike,

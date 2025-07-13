@@ -13,12 +13,15 @@ const handleValidationErrors = (req, res, next) => {
   next();
 };
 
+/*
+// TEMPORARILY DISABLED: Listing fee requirement
 // Create listing payment session validation
 const validateCreateListingSession = [
   body("artworkId").isMongoId().withMessage("Valid artwork ID is required"),
 
   handleValidationErrors,
 ];
+*/
 
 // Create purchase session validation
 const validateCreatePurchaseSession = [
@@ -60,7 +63,7 @@ const validateTransactionId = [
 ];
 
 module.exports = {
-  validateCreateListingSession,
+  // validateCreateListingSession,
   validateCreatePurchaseSession,
   validatePaymentHistoryQuery,
   validateTransactionId,

@@ -51,12 +51,13 @@ router.get(
   artworkController.getMyArtworks
 );
 
+// TEMPORARILY DISABLED: Listing fee requirement
 // route for unpaid artworks
-router.get(
-  "/my/unpaid",
-  restrictTo("artist"),
-  artworkController.getUnpaidArtworks
-);
+// router.get(
+//   "/my/unpaid",
+//   restrictTo("artist"),
+//   artworkController.getUnpaidArtworks
+// );
 
 // Artwork management routes (only artwork owner can access)
 router.patch(

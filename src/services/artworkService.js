@@ -26,7 +26,10 @@ class ArtworkService {
             artist: artistId,
             status: "pending",
             currentOwner: artistId,
-            listingFeeStatus: "unpaid",
+            // TEMPORARILY DISABLED: Listing fee requirement
+            // listingFeeStatus: "unpaid",
+            listingFeeStatus: "paid", // Skip listing fee for now
+            listingFeePaidAt: new Date(), // Set as if paid
           },
         ],
         { session }
@@ -97,7 +100,11 @@ class ArtworkService {
       } = query;
 
       // Build filter object
-      const filter = { status, listingFeeStatus: "paid" };
+      const filter = {
+        status,
+        // TEMPORARILY DISABLED: Listing fee requirement
+        // listingFeeStatus: "paid"
+      };
 
       // Price Filter
       if (minPrice || maxPrice) {
@@ -292,8 +299,6 @@ class ArtworkService {
 
   // Get artworks by artist
   async getArtworksByArtist(artistId, query = {}) {
-    console.log("getArtworksByArtist service artistId", artistId);
-
     try {
       const {
         page = 1,
@@ -307,9 +312,10 @@ class ArtworkService {
       const filter = { artist: artistId };
 
       // Handle payment status filtering
-      if (!includeUnpaid) {
-        filter.listingFeeStatus = "paid";
-      }
+      // TEMPORARILY DISABLED: Listing fee requirement
+      // if (!includeUnpaid) {
+      //   filter.listingFeeStatus = "paid";
+      // }
 
       if (status) {
         filter.status = status;

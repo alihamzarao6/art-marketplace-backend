@@ -2,7 +2,7 @@ const express = require("express");
 const paymentController = require("../controllers/paymentController");
 const { protect, restrictTo } = require("../middleware/auth");
 const {
-  validateCreateListingSession,
+  // validateCreateListingSession,
   validateCreatePurchaseSession,
   validatePaymentHistoryQuery,
   validateTransactionId,
@@ -13,12 +13,15 @@ const router = express.Router();
 // Protected routes (authentication required)
 router.use(protect);
 
+/*
+// TEMPORARILY DISABLED: Listing fee requirement
 router.post(
   "/create-listing-session",
   restrictTo("artist"),
   validateCreateListingSession,
   paymentController.createListingSession
 );
+*/
 
 router.post(
   "/create-purchase-session",
@@ -47,5 +50,5 @@ module.exports = router;
 // Export webhook handler separately for direct mounting
 module.exports.webhookHandler = [
   express.raw({ type: "application/json" }),
-  paymentController.handleWebhook
+  paymentController.handleWebhook,
 ];

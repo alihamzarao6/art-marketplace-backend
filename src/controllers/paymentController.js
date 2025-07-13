@@ -3,6 +3,9 @@ const paymentService = require("../services/paymentService");
 const AppError = require("../utils/appError");
 const logger = require("../utils/logger");
 
+/*
+
+// TEMPORARILY DISABLED: Listing fee requirement
 // Create listing payment session
 const createListingSession = async (req, res, next) => {
   try {
@@ -25,6 +28,8 @@ const createListingSession = async (req, res, next) => {
     next(error);
   }
 };
+
+*/
 
 // Create purchase payment session
 const createPurchaseSession = async (req, res, next) => {
@@ -139,7 +144,8 @@ const getPaymentStats = async (req, res, next) => {
 };
 
 module.exports = {
-  createListingSession,
+  // TEMPORARILY DISABLED: Listing fee requirement
+  // createListingSession,
   createPurchaseSession,
   handleWebhook,
   getPaymentHistory,

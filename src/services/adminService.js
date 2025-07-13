@@ -26,6 +26,8 @@ class AdminService {
         throw new AppError("Artwork is not pending approval", 400);
       }
 
+      // TEMPORARILY DISABLED: Listing fee requirement
+      /*
       // Check artwork's own payment status
       if (artwork.listingFeeStatus !== "paid") {
         throw new AppError("Listing fee must be paid before approval", 400);
@@ -39,6 +41,7 @@ class AdminService {
       if (!listingPayment) {
         throw new AppError("Listing fee must be paid before approval", 400);
       }
+        */
 
       artwork.status = "approved";
       artwork.approvedAt = new Date();
@@ -131,7 +134,10 @@ class AdminService {
       } = query;
 
       // Build filter
-      const filter = { status: "pending", listingFeeStatus: "paid" };
+      const filter = {
+        status: "pending",
+        // listingFeeStatus: "paid",
+      };
 
       // Price filtering
       if (minPrice || maxPrice) {
