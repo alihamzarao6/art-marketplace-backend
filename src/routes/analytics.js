@@ -40,4 +40,16 @@ router.get(
   analyticsController.generateAnalyticsReport
 );
 
+router.get("/ownership", validateAnalyticsQuery, async (req, res, next) => {
+  try {
+    const result = await analyticsService.getOwnershipAnalytics(req.query);
+    res.status(200).json({
+      status: "success",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;

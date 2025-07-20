@@ -1,7 +1,8 @@
 // This middleware checks if the user owns the artwork and if it can be modified
 
-const Artwork  = require("../models/Artwork");
+const Artwork = require("../models/Artwork");
 const AppError = require("../utils/appError");
+const Transaction = require("../models/Transaction");
 
 // check if user owns the artwork
 const checkArtworkOwnership = async (req, res, next) => {
@@ -12,7 +13,7 @@ const checkArtworkOwnership = async (req, res, next) => {
       return next(new AppError("Artwork not found", 404));
     }
 
-    if (artwork.artist.toString() !== req.user.id) {
+    if (artwork.currentOwner.toString() !== req.user.id) {
       return next(
         new AppError("You do not have permission to modify this artwork", 403)
       );
@@ -29,10 +30,19 @@ const checkArtworkOwnership = async (req, res, next) => {
 
 // Check if artwork can be modified (not sold)
 const checkArtworkModifiable = (req, res, next) => {
-  if (req.artwork.soldAt) {
-    return next(new AppError("Cannot modify sold artwork", 403));
-  }
-  next();
+  Transaction.findOne({
+    artwork: req.artwork._id,
+    status: "pending",
+  })
+    .then((pendingTransaction) => {
+      if (pendingTransaction) {
+        return next(
+          new AppError("Cannot modify artwork with pending transaction", 400)
+        );
+      }
+      next();
+    })
+    .catch(next);
 };
 
 module.exports = {

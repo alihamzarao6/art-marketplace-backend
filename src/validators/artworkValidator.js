@@ -248,6 +248,16 @@ const validateArtworkQuery = [
     .isLength({ min: 1, max: 100 })
     .withMessage("Search term must be between 1 and 100 characters"),
 
+  query("view")
+    .optional()
+    .isIn(["created", "owned", "sold"])
+    .withMessage("View must be created, owned, or sold"),
+
+  query("viewType")
+    .optional()
+    .isIn(["created", "owned", "sold"])
+    .withMessage("ViewType must be created, owned, or sold"),
+
   handleValidationErrors,
 ];
 

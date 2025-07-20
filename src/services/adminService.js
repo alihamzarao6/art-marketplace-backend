@@ -205,7 +205,12 @@ class AdminService {
             },
             soldArtworks: {
               $sum: {
-                $cond: [{ $eq: [{ $type: "$soldAt" }, "date"] }, 1, 0],
+                $cond: [{ $ne: ["$artist", "$currentOwner"] }, 1, 0],
+              },
+            },
+            transferredArtworks: {
+              $sum: {
+                $cond: [{ $gt: ["$totalSales", 0] }, 1, 0],
               },
             },
             averagePrice: { $avg: "$price" },
@@ -242,12 +247,57 @@ class AdminService {
         },
       ]);
 
+      // ✅ Get additional marketplace metrics
+      const marketplaceStats = await Artwork.aggregate([
+        {
+          $facet: {
+            // Most transferred artwork
+            mostTransferred: [
+              { $match: { totalSales: { $gt: 0 } } },
+              { $sort: { totalSales: -1 } },
+              { $limit: 1 },
+              { $project: { title: 1, totalSales: 1, artist: 1 } },
+            ],
+            // Average time to first sale
+            averageSaleTime: [
+              {
+                $match: {
+                  $and: [
+                    { $ne: ["$artist", "$currentOwner"] },
+                    { lastSaleDate: { $exists: true } },
+                    { createdAt: { $exists: true } },
+                  ],
+                },
+              },
+              {
+                $project: {
+                  timeToSale: {
+                    $divide: [
+                      { $subtract: ["$lastSaleDate", "$createdAt"] },
+                      1000 * 60 * 60 * 24, // Convert to days
+                    ],
+                  },
+                },
+              },
+              {
+                $group: {
+                  _id: null,
+                  averageDays: { $avg: "$timeToSale" },
+                },
+              },
+            ],
+          },
+        },
+      ]);
+
       const baseStats = stats[0] || {
         totalArtworks: 0,
         pendingArtworks: 0,
         approvedArtworks: 0,
         rejectedArtworks: 0,
         soldArtworks: 0,
+        transferredArtworks: 0,
+        totalTransfers: 0,
         averagePrice: 0,
         totalValue: 0,
       };
@@ -258,6 +308,22 @@ class AdminService {
           artworksLastMonth: recentStats[0]?.lastMonth[0]?.count || 0,
           artworksLastWeek: recentStats[0]?.lastWeek[0]?.count || 0,
           pendingLastWeek: recentStats[0]?.pendingLastWeek[0]?.count || 0,
+        },
+        secondaryMarketActivity: {
+          totalTransfers: baseStats.totalTransfers,
+          transferredArtworks: baseStats.transferredArtworks,
+          transferRate:
+            baseStats.totalArtworks > 0
+              ? (
+                  (baseStats.soldArtworks / baseStats.totalArtworks) *
+                  100
+                ).toFixed(2)
+              : 0,
+          averageTimeToFirstSale: additionalStats.averageSaleTime?.[0]
+            ?.averageDays
+            ? Math.round(additionalStats.averageSaleTime[0].averageDays)
+            : null,
+          mostTransferredArtwork: additionalStats.mostTransferred?.[0] || null,
         },
       };
     } catch (error) {
@@ -285,6 +351,34 @@ class AdminService {
             },
             unverifiedUsers: {
               $sum: { $cond: [{ $eq: ["$isVerified", false] }, 1, 0] },
+            },
+          },
+        },
+      ]);
+
+      // Get artwork ownership statistics
+      const ownershipStats = await Artwork.aggregate([
+        {
+          $group: {
+            _id: null,
+            totalArtworks: { $sum: 1 },
+            artworksOwnedByArtists: {
+              $sum: {
+                $cond: [
+                  { $eq: ["$artist", "$currentOwner"] }, // Same person
+                  1,
+                  0,
+                ],
+              },
+            },
+            artworksOwnedByBuyers: {
+              $sum: {
+                $cond: [
+                  { $ne: ["$artist", "$currentOwner"] }, // Different people
+                  1,
+                  0,
+                ],
+              },
             },
           },
         },
@@ -326,8 +420,15 @@ class AdminService {
         unverifiedUsers: 0,
       };
 
+      const ownership = ownershipStats[0] || {
+        totalArtworks: 0,
+        artworksOwnedByArtists: 0,
+        artworksOwnedByBuyers: 0,
+      };
+
       return {
         ...baseStats,
+        ...ownership,
         recentActivity: {
           usersLastMonth: recentStats[0]?.lastMonth[0]?.count || 0,
           usersLastWeek: recentStats[0]?.lastWeek[0]?.count || 0,

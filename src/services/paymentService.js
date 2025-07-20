@@ -175,9 +175,18 @@ class PaymentService {
 
   // Create purchase payment session
   async createPurchasePaymentSession(artworkId, buyerId) {
+    // Use atomic transaction to prevent race conditions
+    const mongoSession = await mongoose.startSession();
+
     try {
-      // Verify artwork exists and is available for purchase
-      const artwork = await Artwork.findById(artworkId).populate("artist");
+      mongoSession.startTransaction();
+
+      // Verify artwork exists and is available for purchase with session lock
+      const artwork = await Artwork.findById(artworkId)
+        .populate("artist")
+        .populate("currentOwner")
+        .session(mongoSession);
+
       if (!artwork) {
         throw new AppError("Artwork not found", 404);
       }
@@ -186,20 +195,74 @@ class PaymentService {
         throw new AppError("Artwork is not available for purchase", 400);
       }
 
-      if (artwork.soldAt) {
-        throw new AppError("Artwork is already sold", 400);
+      if (artwork.currentOwner._id.toString() === buyerId) {
+        throw new AppError("You cannot purchase artwork you already own", 400);
       }
 
-      if (artwork.artist._id.toString() === buyerId) {
-        throw new AppError("You cannot purchase your own artwork", 400);
+      // Check for non-expired pending transactions within atomic operation
+      const now = new Date();
+      const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+
+      // Clean up expired transactions first
+      await Transaction.updateMany(
+        {
+          artwork: artworkId,
+          status: "pending",
+          $or: [
+            { expiresAt: { $lt: now } },
+            {
+              createdAt: { $lt: fiveMinutesAgo },
+              expiresAt: { $exists: false },
+            },
+          ],
+        },
+        {
+          status: "failed",
+          metadata: {
+            failureReason: "Session expired or abandoned",
+            cleanedUpAt: now,
+          },
+        }
+      ).session(mongoSession);
+
+      // Check for active pending transactions
+      const activePendingTransaction = await Transaction.findOne({
+        artwork: artworkId,
+        status: "pending",
+        $or: [
+          { expiresAt: { $gt: now } },
+          {
+            createdAt: { $gt: fiveMinutesAgo },
+            expiresAt: { $exists: false },
+          },
+        ],
+      }).session(mongoSession);
+
+      if (activePendingTransaction) {
+        const timeLeft = activePendingTransaction.expiresAt
+          ? Math.max(
+              0,
+              Math.ceil((activePendingTransaction.expiresAt - now) / 1000 / 60)
+            )
+          : 30;
+
+        throw new AppError(
+          `This artwork is currently being purchased by another user. Please try again in ${timeLeft} minutes.`,
+          409
+        );
       }
 
       // Get buyer and ensure Stripe Customer
       const buyer = await User.findById(buyerId);
       const customerId = await this.ensureStripeCustomer(buyer);
 
+      // Use currentOwner as seller, not original artist
+      const currentOwner = artwork.currentOwner;
+      const sellerId = currentOwner._id.toString();
+
       // Calculate platform commission (5% for example)
-      const platformCommission = Math.round(artwork.price * 0.05);
+      // const platformCommission = Math.round(artwork.price * 0.05);
+      const platformCommission = 0; // Temporarily no commission for sales
       const artistAmount = artwork.price - platformCommission;
 
       // Create payment intent
@@ -212,19 +275,23 @@ class PaymentService {
           type: "sale",
           artworkId: artworkId.toString(),
           buyerId: buyerId,
-          sellerId: artwork.artist._id.toString(),
+          sellerId: sellerId,
           platformCommission: platformCommission.toString(),
           artistAmount: artistAmount.toString(),
+          isResale:
+            artwork.artist._id.toString() !== sellerId ? "true" : "false",
+          original_artist: artwork.artist._id.toString(),
         },
       });
 
-      // create checkout session
+      // Create checkout session with expiry
+      const sessionExpiryTime = Math.floor(Date.now() / 1000) + 15 * 60; // 15 minutes
       const session = await stripe.checkout.sessions.create({
         ...getSessionOptions(customerId, {
           type: "sale",
           artworkId: artworkId.toString(),
           buyerId: buyerId,
-          sellerId: artwork.artist._id.toString(),
+          sellerId: sellerId,
         }),
         line_items: [
           {
@@ -240,26 +307,38 @@ class PaymentService {
             quantity: 1,
           },
         ],
+        expiresAt: sessionExpiryTime,
         payment_intent_data: {
           metadata: paymentIntent.metadata,
         },
       });
 
-      // Record transaction
-      await Transaction.create({
-        buyer: buyerId,
-        seller: artwork.artist._id,
-        artwork: artworkId,
-        amount: artwork.price * 100,
-        paymentIntent: paymentIntent.id,
-        status: "pending",
-        transactionType: "sale",
-        metadata: {
-          stripe_session_id: session.id,
-          platform_commission: platformCommission,
-          artist_amount: artistAmount,
-        },
-      });
+      // Create transaction with expiry within atomic operation
+      const transactionExpiry = new Date(Date.now() + 15 * 60 * 1000);
+      await Transaction.create(
+        [
+          {
+            buyer: buyerId,
+            seller: sellerId,
+            artwork: artworkId,
+            amount: artwork.price * 100,
+            paymentIntent: paymentIntent.id,
+            status: "pending",
+            transactionType: "sale",
+            expiresAt: transactionExpiry,
+            metadata: {
+              stripe_session_id: session.id,
+              stripe_expires_at: sessionExpiryTime,
+              platform_commission: platformCommission,
+              artist_amount: artistAmount,
+            },
+          },
+        ],
+        { session: mongoSession }
+      );
+
+      // Commit the atomic transaction
+      await mongoSession.commitTransaction();
 
       logger.info(
         `Purchase payment session created for artwork ${artworkId} by buyer ${buyerId}`
@@ -269,10 +348,13 @@ class PaymentService {
         sessionId: session.id,
         sessionUrl: session.url,
         paymentIntentId: paymentIntent.id,
+        expiresAt: transactionExpiry,
       };
     } catch (error) {
       logger.error("Error creating purchase payment session,", error);
       throw error;
+    } finally {
+      mongoSession.endSession();
     }
   }
 
@@ -458,8 +540,19 @@ class PaymentService {
       const artwork = await Artwork.findByIdAndUpdate(
         artworkId,
         {
-          soldAt: new Date(),
           currentOwner: buyerId,
+          lastSaleDate: new Date(),
+          $inc: { totalSales: 1 },
+          // ownership history for tracking
+          $push: {
+            ownershipHistory: {
+              owner: buyerId,
+              purchaseDate: new Date(),
+              price: parseInt(paymentIntent.amount) / 100, // Convert from cents
+              transactionId: paymentIntent.id,
+              fromOwner: sellerId,
+            },
+          },
         },
         {
           new: true,
@@ -478,9 +571,16 @@ class PaymentService {
             transactionType: "sold",
             transactionHash,
             additionalData: {
-              price: artwork.price,
+              price: parseInt(paymentIntent.amount) / 100,
               paymentIntent: paymentIntent.id,
               saleDate: new Date(),
+              // Additional context for resales
+              isResale: paymentIntent.metadata.isResale === "true",
+              originalArtist:
+                paymentIntent.metadata.original_artist || artwork.artist,
+              transferNumber: artwork.ownershipHistory
+                ? artwork.ownershipHistory.length
+                : 1,
             },
           },
         ],

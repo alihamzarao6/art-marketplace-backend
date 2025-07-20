@@ -46,7 +46,6 @@ router.post(
 
 router.get(
   "/my/artworks",
-  restrictTo("artist"),
   validateArtworkQuery,
   artworkController.getMyArtworks
 );

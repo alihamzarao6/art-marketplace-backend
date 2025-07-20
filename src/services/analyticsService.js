@@ -28,14 +28,14 @@ class AnalyticsService {
         }
 
         if (startDate) {
-          dateFilter.soldAt = { $gte: startDate };
+          dateFilter.lastSaleDate = { $gte: startDate };
         }
       }
 
       const topArtists = await Artwork.aggregate([
         {
           $match: {
-            soldAt: { $type: "date" },
+            $expr: { $ne: ["$artist", "$currentOwner"] },
             status: "approved",
             ...dateFilter,
           },
@@ -48,6 +48,9 @@ class AnalyticsService {
             averagePrice: { $avg: "$price" },
             minPrice: { $min: "$price" },
             maxPrice: { $max: "$price" },
+            uniqueOwners: { $addToSet: "$currentOwner" },
+            lastSaleDate: { $max: "$lastSaleDate" },
+            firstSaleDate: { $min: "$lastSaleDate" },
           },
         },
         {
@@ -78,6 +81,26 @@ class AnalyticsService {
             averagePrice: { $round: ["$averagePrice", 2] },
             minPrice: 1,
             maxPrice: 1,
+            uniqueBuyers: { $size: "$uniqueOwners" },
+            lastSaleDate: 1,
+            firstSaleDate: 1,
+            salesVelocity: {
+              $cond: [
+                { $and: ["$lastSaleDate", "$firstSaleDate"] },
+                {
+                  $divide: [
+                    "$artworksSold",
+                    {
+                      $divide: [
+                        { $subtract: ["$lastSaleDate", "$firstSaleDate"] },
+                        1000 * 60 * 60 * 24, // Convert to days
+                      ],
+                    },
+                  ],
+                },
+                0,
+              ],
+            },
           },
         },
         { $sort: { totalRevenue: -1 } },
@@ -122,7 +145,7 @@ class AnalyticsService {
         }
 
         if (startDate) {
-          dateFilter.soldAt = { $gte: startDate };
+          dateFilter.lastSaleDate = { $gte: startDate };
         }
       }
 
@@ -134,14 +157,18 @@ class AnalyticsService {
       }
 
       const topArtworks = await Artwork.find({
-        soldAt: { $type: "date" },
+        $expr: { $ne: ["$artist", "$currentOwner"] },
         status: "approved",
         ...dateFilter,
         ...categoryFilter,
       })
         .populate("artist", "username email profile")
         .populate("currentOwner", "username email")
-        .sort({ price: -1 })
+        .sort({
+          totalSales: -1,
+          price: -1,
+          lastSaleDate: -1,
+        })
         .limit(parseInt(limit))
         .lean();
 
@@ -183,14 +210,14 @@ class AnalyticsService {
         }
 
         if (startDate) {
-          dateFilter.soldAt = { $gte: startDate };
+          dateFilter.lastSaleDate = { $gte: startDate };
         }
       }
 
       const topCategories = await Artwork.aggregate([
         {
           $match: {
-            soldAt: { $type: "date" },
+            $expr: { $ne: ["$artist", "$currentOwner"] },
             status: "approved",
             medium: {
               $exists: true,
@@ -208,6 +235,10 @@ class AnalyticsService {
             totalRevenue: { $sum: "$price" },
             averagePrice: { $avg: "$price" },
             uniqueArtists: { $addToSet: "$artist" },
+            uniqueBuyers: { $addToSet: "$currentOwner" },
+            lastSaleDate: { $max: "$lastSaleDate" },
+            highestPriceSold: { $max: "$price" },
+            lowestPriceSold: { $min: "$price" },
           },
         },
         {
@@ -217,9 +248,13 @@ class AnalyticsService {
             totalRevenue: 1,
             averagePrice: { $round: ["$averagePrice", 2] },
             uniqueArtists: { $size: "$uniqueArtists" },
+            uniqueBuyers: { $size: "$uniqueBuyers" },
+            lastSaleDate: 1,
+            highestPriceSold: 1,
+            lowestPriceSold: 1,
           },
         },
-        { $sort: { totalSales: -1 } },
+        { $sort: { totalRevenue: -1, totalSales: -1 } },
         { $limit: parseInt(limit) },
       ]);
 
@@ -254,6 +289,93 @@ class AnalyticsService {
       };
     } catch (error) {
       logger.error("Error generating analytics report:", error);
+      throw error;
+    }
+  }
+
+  // ✅ New method for ownership analytics
+  async getOwnershipAnalytics(query = {}) {
+    try {
+      const { period = "all" } = query;
+
+      // Build date filter
+      let dateFilter = {};
+      if (period !== "all") {
+        const now = new Date();
+        let startDate;
+
+        switch (period) {
+          case "week":
+            startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            break;
+          case "month":
+            startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+            break;
+          case "year":
+            startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+            break;
+          default:
+            startDate = null;
+        }
+
+        if (startDate) {
+          dateFilter.lastSaleDate = { $gte: startDate };
+        }
+      }
+
+      // Ownership transfer analytics
+      const ownershipData = await Artwork.aggregate([
+        { $match: dateFilter },
+        {
+          $group: {
+            _id: null,
+            totalArtworks: { $sum: 1 },
+            originalOwnership: {
+              $sum: {
+                $cond: [{ $eq: ["$artist", "$currentOwner"] }, 1, 0],
+              },
+            },
+            transferredOwnership: {
+              $sum: {
+                $cond: [{ $ne: ["$artist", "$currentOwner"] }, 1, 0],
+              },
+            },
+            averageTransfers: {
+              $avg: { $size: { $ifNull: ["$ownershipHistory", []] } },
+            },
+          },
+        },
+      ]);
+
+      // Most active secondary market artworks
+      const secondaryMarketArtworks = await Artwork.find({
+        $expr: { $gt: [{ $size: { $ifNull: ["$ownershipHistory", []] } }, 1] },
+      })
+        .populate("artist", "username")
+        .populate("currentOwner", "username")
+        .sort({ "ownershipHistory.length": -1 })
+        .limit(10)
+        .lean();
+
+      return {
+        period,
+        ownershipSummary: ownershipData[0] || {
+          totalArtworks: 0,
+          originalOwnership: 0,
+          transferredOwnership: 0,
+          averageTransfers: 0,
+        },
+        secondaryMarketArtworks,
+        transferRate: ownershipData[0]
+          ? (
+              (ownershipData[0].transferredOwnership /
+                ownershipData[0].totalArtworks) *
+              100
+            ).toFixed(2)
+          : 0,
+      };
+    } catch (error) {
+      logger.error("Error getting ownership analytics:", error);
       throw error;
     }
   }

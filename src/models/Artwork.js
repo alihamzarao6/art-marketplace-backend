@@ -54,7 +54,29 @@ const artworkSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    soldAt: Date,
+    ownershipHistory: [
+      {
+        owner: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+        purchaseDate: {
+          type: Date,
+          default: Date.now,
+        },
+        price: Number,
+        transactionId: String,
+        fromOwner: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+      },
+    ],
+    lastSaleDate: Date,
+    totalSales: {
+      type: Number,
+      default: 0,
+    },
     currentOwner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

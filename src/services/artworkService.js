@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const Artwork = require("../models/Artwork");
 const User = require("../models/User");
 const ListingPayment = require("../models/ListingPayment");
+const Transaction = require("../models/Transaction");
 const TraceabilityRecord = require("../models/TraceabilityRecord");
 const artworkCacheService = require("./artworkCacheService");
 const { deleteCloudinaryImage } = require("../middleware/upload");
@@ -138,6 +139,7 @@ class ArtworkService {
       // Execute query
       const artworks = await Artwork.find(filter)
         .populate("artist", "username profile")
+        .populate("currentOwner", "username profile")
         .sort(sort)
         .skip(skip)
         .limit(parseInt(limit))
@@ -217,16 +219,11 @@ class ArtworkService {
       }
 
       // Check ownership
-      if (artwork.artist.toString() !== userId) {
+      if (artwork.currentOwner.toString() !== userId) {
         throw new AppError(
           "You do not have permission to update this artwork",
           403
         );
-      }
-
-      // Check if artwork is sold
-      if (artwork.soldAt) {
-        throw new AppError("Cannot update sold artwork", 400);
       }
 
       const updatedArtwork = await Artwork.findByIdAndUpdate(
@@ -257,16 +254,24 @@ class ArtworkService {
       }
 
       // Check ownership
-      if (artwork.artist.toString() !== userId) {
+      if (artwork.currentOwner.toString() !== userId) {
         throw new AppError(
           "You do not have permission to delete this artwork",
           403
         );
       }
 
-      // Check if artwork is sold
-      if (artwork.soldAt) {
-        throw new AppError("Cannot delete sold artwork", 400);
+      // Check if there's a pending transaction
+      const pendingTransaction = await Transaction.findOne({
+        artwork: artworkId,
+        status: "pending",
+      });
+
+      if (pendingTransaction) {
+        throw new AppError(
+          "Cannot delete artwork with pending transaction",
+          400
+        );
       }
 
       // Delete images from cloudinary
@@ -307,9 +312,32 @@ class ArtworkService {
         status,
         includePrivate = false,
         includeUnpaid = false,
+        viewType = "created",
       } = query;
 
-      const filter = { artist: artistId };
+      // const filter = { artist: artistId };
+      let filter = {};
+
+      switch (viewType) {
+        case "created":
+          // Artworks created by this artist (original artist view)
+          filter.artist = artistId;
+          break;
+
+        case "owned":
+          // Artworks currently owned by this user (current owner view)
+          filter.currentOwner = artistId;
+          break;
+
+        case "sold":
+          // Artworks originally created by this artist but sold to others
+          filter.artist = artistId;
+          filter.currentOwner = { $ne: artistId }; // Different current owner
+          break;
+
+        default:
+          filter.artist = artistId;
+      }
 
       // Handle payment status filtering
       // TEMPORARILY DISABLED: Listing fee requirement
@@ -327,6 +355,7 @@ class ArtworkService {
 
       const artworks = await Artwork.find(filter)
         .populate("artist", "username profile")
+        .populate("currentOwner", "username profile")
         .sort(sort)
         .skip(skip)
         .limit(parseInt(limit))
@@ -335,7 +364,17 @@ class ArtworkService {
       const total = await Artwork.countDocuments(filter);
 
       return {
-        artworks,
+        artworks: artworks.map((artwork) => ({
+          ...artwork,
+          // Ownership context for frontend
+          ownershipContext: {
+            isCurrentOwner: artwork.currentOwner._id.toString() === artistId,
+            isOriginalArtist: artwork.artist._id.toString() === artistId,
+            canEdit: artwork.currentOwner._id.toString() === artistId,
+            canDelete: artwork.currentOwner._id.toString() === artistId,
+            canSell: artwork.currentOwner._id.toString() === artistId,
+          },
+        })),
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),
@@ -447,7 +486,7 @@ class ArtworkService {
             },
             soldArtworks: {
               $sum: {
-                $cond: [{ $eq: [{ $type: "$soldAt" }, "date"] }, 1, 0],
+                $cond: [{ $ne: ["$artist", "$currentOwner"] }, 1, 0],
               },
             },
             averagePrice: { $avg: "$price" },

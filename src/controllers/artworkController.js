@@ -101,10 +101,22 @@ const deleteArtwork = async (req, res, next) => {
 const getArtworksByArtist = async (req, res, next) => {
   try {
     const { id: artistId } = req.params;
-    const includePrivate = req.user && req.user.id === artistId;
+    const { view = "created" } = req.query;
+
+    // Handle different view types
+    let includePrivate = false;
+    let viewType = "created";
+
+    if (req.user && req.user.id === artistId) {
+      includePrivate = true;
+      viewType = view; // Allow artist to see all views
+    } else {
+      viewType = "created"; // Public can only see created artworks
+    }
 
     const result = await artworkService.getArtworksByArtist(artistId, {
       ...req.query,
+      viewType,
       includePrivate,
     });
 
@@ -114,6 +126,7 @@ const getArtworksByArtist = async (req, res, next) => {
       data: {
         artworks: result.artworks,
         pagination: result.pagination,
+        viewType,
       },
     });
   } catch (error) {
@@ -124,17 +137,28 @@ const getArtworksByArtist = async (req, res, next) => {
 // Get current user's artworks (for dashboard)
 const getMyArtworks = async (req, res, next) => {
   try {
-    if (req.user.role !== "artist") {
-      return next(new AppError("Only artists can access this endpoint", 403));
-    }
+    const { view = "owned" } = req.query;
 
-    const result = await artworkService.getArtworksByArtist(req.user.id, {
-      ...req.query,
-      includePrivate: true,
-      // TEMPORARILY DISABLED: Listing fee requirement
-      // includeUnpaid: false,
-      includeUnpaid: true, // Show all artworks regardless of payment status
-    });
+    let result;
+
+    if (req.user.role === "artist") {
+      // Artists can see created, owned, and sold artworks
+      result = await artworkService.getArtworksByArtist(req.user.id, {
+        ...req.query,
+        viewType: view, // "created", "owned", "sold"
+        includePrivate: true,
+        // TEMPORARILY DISABLED: Listing fee requirement
+        // includeUnpaid: false,
+        includeUnpaid: true, // Show all artworks regardless of payment status,
+      });
+    } else {
+      // Buyers can only see owned artworks
+      result = await artworkService.getArtworksByArtist(req.user.id, {
+        ...req.query,
+        viewType: "owned",
+        includePrivate: true,
+      });
+    }
 
     res.status(200).json({
       status: "success",
@@ -142,6 +166,7 @@ const getMyArtworks = async (req, res, next) => {
       data: {
         artworks: result.artworks,
         pagination: result.pagination,
+        viewType: view,
       },
     });
   } catch (error) {

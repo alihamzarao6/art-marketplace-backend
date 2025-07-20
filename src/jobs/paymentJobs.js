@@ -4,6 +4,7 @@ const Transaction = require("../models/Transaction");
 const User = require("../models/User");
 const emailService = require("../services/emailService");
 const logger = require("../utils/logger");
+const { stripe } = require("../config/stripe");
 
 // create payment queue
 const paymentQueue = new Queue("payment processing", {
@@ -121,6 +122,101 @@ paymentQueue.process("handle-failed-payment", async (job) => {
   }
 });
 
+paymentQueue.process("cleanup-expired-transactions", async (job) => {
+  try {
+    logger.info("Starting cleanup of expired transactions");
+
+    const now = new Date();
+
+    // Find expired pending transactions
+    const expiredTransactions = await Transaction.find({
+      status: "pending",
+      $or: [
+        { expiresAt: { $lt: now } },
+        {
+          createdAt: { $lt: new Date(now.getTime() - 45 * 60 * 1000) },
+          expiresAt: { $exists: false },
+        },
+      ],
+    }).populate("artwork", "title");
+
+    let cleanedCount = 0;
+
+    for (const transaction of expiredTransactions) {
+      try {
+        // Double-check with Stripe if session ID exists
+        if (transaction.metadata?.stripe_session_id) {
+          const session = await stripe.checkout.sessions.retrieve(
+            transaction.metadata.stripe_session_id
+          );
+
+          if (session.status === "expired") {
+            await Transaction.updateOne(
+              { _id: transaction._id },
+              {
+                status: "failed",
+                sessionExpired: true,
+                cleanedUpAt: now,
+                cleanupReason:
+                  "Stripe session expired - user abandoned payment",
+                $set: {
+                  "metadata.stripe_session_status": session.status,
+                  "metadata.cleanup_timestamp": now.toISOString(),
+                },
+              }
+            );
+
+            cleanedCount++;
+            logger.info(
+              `Cleaned up expired transaction ${transaction._id} for artwork: ${transaction.artwork?.title}`
+            );
+          }
+        } else {
+          // No Stripe session - mark as failed
+          await Transaction.updateOne(
+            { _id: transaction._id },
+            {
+              status: "failed",
+              cleanedUpAt: now,
+              cleanupReason: "No Stripe session found - invalid transaction",
+            }
+          );
+          cleanedCount++;
+        }
+      } catch (stripeError) {
+        logger.error(`Error checking Stripe session: ${stripeError.message}`);
+
+        // If very old (>1 hour), mark as failed anyway
+        const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+        if (transaction.createdAt < oneHourAgo) {
+          await Transaction.updateOne(
+            { _id: transaction._id },
+            {
+              status: "failed",
+              cleanedUpAt: now,
+              cleanupReason: "Assumed expired - very old transaction",
+            }
+          );
+          cleanedCount++;
+        }
+      }
+    }
+
+    logger.info(
+      `Cleanup completed. Processed ${cleanedCount} expired transactions`
+    );
+
+    return {
+      success: true,
+      totalExpired: expiredTransactions.length,
+      cleanedUp: cleanedCount,
+    };
+  } catch (error) {
+    logger.error("Transaction cleanup job failed:", error);
+    throw error;
+  }
+});
+
 // Add job functions
 const addPaymentConfirmationJob = (transactionId, type) => {
   return paymentQueue.add(
@@ -148,6 +244,28 @@ const addFailedPaymentJob = (paymentIntentId, reason) => {
   );
 };
 
+// Schedule cleanup every 10 minutes
+const addTransactionCleanupJob = () => {
+  return paymentQueue.add(
+    "cleanup-expired-transactions",
+    {},
+    {
+      repeat: { cron: "*/10 * * * *" }, // Every 10 minutes
+      attempts: 3,
+    }
+  );
+};
+
+// Initialize cleanup jobs
+const initializePaymentJobs = async () => {
+  try {
+    await addTransactionCleanupJob();
+    logger.info("Payment cleanup jobs initialized");
+  } catch (error) {
+    logger.error("Failed to initialize payment jobs:", error);
+  }
+};
+
 // Error handling
 paymentQueue.on("failed", (job, err) => {
   logger.error(`Payment job ${job.id} failed:`, err);
@@ -161,4 +279,6 @@ module.exports = {
   paymentQueue,
   addPaymentConfirmationJob,
   addFailedPaymentJob,
+  addTransactionCleanupJob,
+  initializePaymentJobs,
 };

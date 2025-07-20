@@ -2,6 +2,7 @@ const app = require("./src/app");
 const mongoose = require("mongoose");
 const logger = require("./src/utils/logger");
 const config = require("./src/config/config");
+const { initializePaymentJobs } = require("./src/jobs/paymentJobs");
 
 // Handle uncaught exceptions
 process.on("uncaughtException", (err) => {
@@ -26,10 +27,20 @@ process.on("unhandledRejection", (err) => {
 const PORT = process.env.PORT || config.port || 5000;
 let server;
 
-mongoose
-  .connect(config.mongodb.uri)
-  .then(() => {
+const startServer = async () => {
+  try {
+    // Connect to MongoDB
+    await mongoose.connect(config.mongodb.uri);
     console.log("Connected to MongoDB");
+
+    // Initialize payment background jobs
+    try {
+      await initializePaymentJobs();
+      logger.info("Payment jobs initialized");
+    } catch (error) {
+      logger.error("Payment jobs initialization failed:", error);
+      // Continue server startup even if jobs fail
+    }
 
     // Start server ONLY ONCE after MongoDB connection
     server = app.listen(PORT, () => {
@@ -39,7 +50,6 @@ mongoose
     // Socket.io setup AFTER server is created
     const io = require("socket.io")(server, {
       cors: {
-        // origin: config.frontendUrl || "http://localhost:3000",
         origin: [
           config.frontendUrl,
           "http://localhost:3000",
@@ -55,15 +65,21 @@ mongoose
     // Configure socket events
     try {
       require("./src/sockets")(io);
+      logger.info("Socket.io initialized successfully");
     } catch (error) {
       logger.error("Socket configuration error:", error);
       // Don't crash if sockets fail to initialize
     }
-  })
-  .catch((err) => {
-    logger.error("Failed to connect to MongoDB:", err);
+
+    logger.info("🚀 Server startup completed successfully!");
+  } catch (error) {
+    logger.error("Failed to start server:", error);
     process.exit(1);
-  });
+  }
+};
+
+// Start the server
+startServer();
 
 // Handle SIGTERM signal
 process.on("SIGTERM", () => {

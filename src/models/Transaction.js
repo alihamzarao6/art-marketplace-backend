@@ -41,6 +41,16 @@ const transactionSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    expiresAt: {
+      type: Date,
+      index: true, // For efficient cleanup queries
+    },
+    sessionExpired: {
+      type: Boolean,
+      default: false,
+    },
+    cleanedUpAt: Date,
+    cleanupReason: String,
     metadata: {
       stripe_payment_id: String,
       stripe_session_id: String,
@@ -61,6 +71,7 @@ const transactionSchema = new mongoose.Schema(
 
 // Index for faster searches
 transactionSchema.index({ buyer: 1, seller: 1, artwork: 1, status: 1 });
+transactionSchema.index({ artwork: 1, status: 1, expiresAt: 1 });
 
 const Transaction = mongoose.model("Transaction", transactionSchema);
 
