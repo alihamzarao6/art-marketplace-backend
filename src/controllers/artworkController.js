@@ -46,7 +46,13 @@ const getArtworks = async (req, res, next) => {
 // Get single artwork
 const getArtworkById = async (req, res, next) => {
   try {
-    const artwork = await artworkService.getArtworkById(req.params.id);
+    const userId = req.user ? req.user.id : null;
+
+    const artwork = await artworkService.getArtworkById(
+      req.params.id,
+      false,
+      userId
+    );
 
     res.status(200).json({
       status: "success",
@@ -251,12 +257,16 @@ const getArtworkStats = async (req, res, next) => {
 // Like/Unlike artwork
 const toggleArtworkLike = async (req, res, next) => {
   try {
-    // This functionality will be implemented when we add user favorites
-    // For now, return a placeholder response
+    const engagementService = require("../services/engagementService");
+    const { id: artworkId } = req.params;
+    const userId = req.user.id;
+
+    const result = await engagementService.toggleArtworkLike(userId, artworkId);
+
     res.status(200).json({
       status: "success",
-      message:
-        "Like functionality will be implemented in the user favorites module",
+      message: `Artwork ${result.action} successfully`,
+      data: result,
     });
   } catch (error) {
     next(error);

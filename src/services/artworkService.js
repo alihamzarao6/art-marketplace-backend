@@ -170,13 +170,13 @@ class ArtworkService {
   }
 
   // get single artwork by id
-  async getArtworkById(artworkId, includePrivate = false) {
+  async getArtworkById(artworkId, includePrivate = false, userId = null) {
     try {
       // try to get result from cache
       const cachedArtwork = await artworkCacheService.getCachedArtwork(
         artworkId
       );
-      if (cachedArtwork && !includePrivate) {
+      if (cachedArtwork && !includePrivate && !userId) {
         return cachedArtwork;
       }
 
@@ -197,12 +197,55 @@ class ArtworkService {
         throw new AppError("Artwork not found", 404);
       }
 
-      // Cache the result if it's public
-      if (!includePrivate) {
-        await artworkCacheService.cacheArtwork(artworkId, artwork);
+      // Add engagement context if user is provided
+      let engagementContext = {
+        isLiked: false,
+        isFollowingArtist: false,
+        canLike: false,
+        canFollow: false,
+      };
+
+      if (userId) {
+        const user = await User.findById(userId).select(
+          "likedArtworks followedArtists"
+        );
+
+        if (user) {
+          engagementContext.isLiked = user.hasLikedArtwork(artworkId);
+          engagementContext.isFollowingArtist = user.isFollowingArtist(
+            artwork.artist._id
+          );
+
+          // User can like if they don't own the artwork
+          engagementContext.canLike =
+            artwork.artist._id.toString() !== userId &&
+            artwork.currentOwner._id.toString() !== userId;
+
+          // User can follow if they're not the artist and have different role
+          engagementContext.canFollow =
+            artwork.artist._id.toString() !== userId && user.role !== "artist";
+        }
       }
 
-      return artwork;
+      const enhancedArtwork = {
+        ...artwork,
+        engagementContext,
+      };
+
+      // Cache the result if it's public and no user context
+      if (!includePrivate && !userId) {
+        await artworkCacheService.cacheArtwork(artworkId, enhancedArtwork);
+      }
+
+      // Record view if user is viewing
+      if (userId) {
+        const engagementService = require("./engagementService");
+
+        // Don't await this to avoid slowing down the response
+        engagementService.recordArtworkView(artworkId, userId).catch(() => {});
+      }
+
+      return enhancedArtwork;
     } catch (error) {
       logger.error(`Error getting artwork by ID: ${error}`);
       throw error;

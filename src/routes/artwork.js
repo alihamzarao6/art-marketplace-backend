@@ -21,7 +21,12 @@ const router = express.Router();
 // Public routes
 router.get("/", validateArtworkQuery, artworkController.getArtworks);
 router.get("/search", validateArtworkQuery, artworkController.searchArtworks);
-router.get("/:id", validateArtworkId, artworkController.getArtworkById);
+router.get(
+  "/:id",
+  optionalAuth,
+  validateArtworkId,
+  artworkController.getArtworkById
+);
 
 // Public route with optional authentication
 router.get(
@@ -79,6 +84,7 @@ router.delete(
 // User interaction routes -- (later)
 router.post(
   "/:id/like",
+  protect,
   validateArtworkId,
   artworkController.toggleArtworkLike
 );

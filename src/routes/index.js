@@ -12,7 +12,7 @@ const analyticsRoutes = require("./analytics");
 const messageRoutes = require("./messages");
 // const traceabilityRoutes = require("./traceability");
 // const uploadRoutes = require("./upload");
-// const healthRoutes = require("./health");
+const engagementRoutes = require("./engagement");
 
 // Mount routes
 router.use("/auth", authRoutes);
@@ -25,6 +25,6 @@ router.use("/analytics", analyticsRoutes);
 router.use("/messages", messageRoutes);
 // router.use("/traceability", traceabilityRoutes);
 // router.use("/upload", uploadRoutes);
-// router.use("/system", healthRoutes);
+router.use("/engagement", engagementRoutes);
 
 module.exports = router;

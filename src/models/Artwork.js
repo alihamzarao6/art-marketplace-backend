@@ -26,6 +26,7 @@ const artworkSchema = new mongoose.Schema(
       ref: "User",
       required: [true, "Artist is required"],
     },
+
     listingFeeStatus: {
       type: String,
       enum: ["unpaid", "pending", "paid", "failed"],
@@ -39,6 +40,7 @@ const artworkSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+
     status: {
       type: String,
       enum: ["pending", "approved", "rejected"],
@@ -48,12 +50,14 @@ const artworkSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+
     approvedAt: Date,
     rejectedAt: Date,
     rejectionReason: {
       type: String,
       trim: true,
     },
+
     ownershipHistory: [
       {
         owner: {
@@ -84,6 +88,7 @@ const artworkSchema = new mongoose.Schema(
         return this.artist;
       },
     },
+
     tags: [String],
     medium: String,
     dimensions: {
@@ -104,6 +109,31 @@ const artworkSchema = new mongoose.Schema(
       number: Number,
       total: Number,
     },
+    // Engagement metrics
+    engagementStats: {
+      totalLikes: {
+        type: Number,
+        default: 0,
+      },
+      totalViews: {
+        type: Number,
+        default: 0,
+      },
+      lastLikedAt: {
+        type: Date,
+      },
+      popularityScore: {
+        type: Number,
+        default: 0,
+      },
+    },
+    // Users who liked this artwork (for quick lookup)
+    likedBy: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
   },
   {
     timestamps: true,
@@ -112,10 +142,53 @@ const artworkSchema = new mongoose.Schema(
   }
 );
 
+// Static method to increment view count
+artworkSchema.statics.incrementViewCount = async function (artworkId) {
+  const artwork = await this.findByIdAndUpdate(
+    artworkId,
+    {
+      $inc: { "engagementStats.totalViews": 1 },
+      $set: {
+        "engagementStats.popularityScore": {
+          $add: [
+            { $multiply: ["$engagementStats.totalLikes", 2] },
+            { $add: ["$engagementStats.totalViews", 1] },
+          ],
+        },
+      },
+    },
+    { new: true }
+  );
+  return artwork;
+};
+
+// Static method to get popular artworks
+artworkSchema.statics.getPopularArtworks = function (limit = 10) {
+  return this.find({ status: "approved" })
+    .sort({
+      "engagementStats.popularityScore": -1,
+      "engagementStats.totalLikes": -1,
+    })
+    .limit(limit)
+    .populate("artist", "username profile")
+    .populate("currentOwner", "username profile");
+};
+
+// Instance method to check if user has liked this artwork
+artworkSchema.methods.isLikedByUser = function (userId) {
+  return this.likedBy && this.likedBy.includes(userId);
+};
+
 // Index for faster searches
 artworkSchema.index({ title: "text", description: "text", tags: "text" });
 artworkSchema.index({ status: 1, createdAt: -1 });
 artworkSchema.index({ artist: 1, status: 1 });
+
+// Index for engagement queries
+artworkSchema.index({ "engagementStats.totalLikes": -1 });
+artworkSchema.index({ "engagementStats.popularityScore": -1 });
+artworkSchema.index({ "engagementStats.totalViews": -1 });
+artworkSchema.index({ likedBy: 1 });
 
 // Virtual for artwork traceability history
 artworkSchema.virtual("traceabilityHistory", {
