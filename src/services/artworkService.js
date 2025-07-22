@@ -227,22 +227,43 @@ class ArtworkService {
         }
       }
 
+      // Add traceability context if user is provided
+      let traceabilityContext = null;
+      if (userId) {
+        try {
+          const TraceabilityRecord = require("../models/TraceabilityRecord");
+          const transferCount = await TraceabilityRecord.countDocuments({
+            artworkId,
+            transactionType: "sold",
+          });
+
+          traceabilityContext = {
+            totalTransfers: transferCount,
+            hasHistory: transferCount > 0,
+            canViewHistory: true,
+            canGenerateCertificate:
+              artwork.currentOwner._id.toString() === userId,
+          };
+        } catch (error) {
+          logger.error("Error getting traceability context:", error);
+          traceabilityContext = {
+            totalTransfers: 0,
+            hasHistory: false,
+            canViewHistory: false,
+            canGenerateCertificate: false,
+          };
+        }
+      }
+
       const enhancedArtwork = {
         ...artwork,
         engagementContext,
+        traceabilityContext,
       };
 
       // Cache the result if it's public and no user context
       if (!includePrivate && !userId) {
         await artworkCacheService.cacheArtwork(artworkId, enhancedArtwork);
-      }
-
-      // Record view if user is viewing
-      if (userId) {
-        const engagementService = require("./engagementService");
-
-        // Don't await this to avoid slowing down the response
-        engagementService.recordArtworkView(artworkId, userId).catch(() => {});
       }
 
       return enhancedArtwork;

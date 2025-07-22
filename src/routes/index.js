@@ -10,7 +10,7 @@ const paymentRoutes = require("./payments");
 const adminRoutes = require("./admin");
 const analyticsRoutes = require("./analytics");
 const messageRoutes = require("./messages");
-// const traceabilityRoutes = require("./traceability");
+const traceabilityRoutes = require("./traceability");
 // const uploadRoutes = require("./upload");
 const engagementRoutes = require("./engagement");
 
@@ -23,7 +23,7 @@ router.use("/payments", paymentRoutes);
 router.use("/admin", adminRoutes);
 router.use("/analytics", analyticsRoutes);
 router.use("/messages", messageRoutes);
-// router.use("/traceability", traceabilityRoutes);
+router.use("/traceability", traceabilityRoutes);
 // router.use("/upload", uploadRoutes);
 router.use("/engagement", engagementRoutes);
 

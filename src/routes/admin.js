@@ -63,4 +63,7 @@ router.get(
 router.patch("/messages/:messageId/flag", adminController.toggleMessageFlag);
 router.delete("/messages/:messageId", adminController.adminDeleteMessage);
 
+// Traceability overview
+router.get("/traceability/overview", adminController.getTraceabilityOverview);
+
 module.exports = router;

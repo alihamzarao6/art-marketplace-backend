@@ -54,6 +54,16 @@ const getArtworkById = async (req, res, next) => {
       userId
     );
 
+    // Record view if user is viewing
+    if (userId) {
+      const engagementService = require("./engagementService");
+
+      // Don't await this to avoid slowing down the response
+      engagementService
+        .recordArtworkView(req.params.id, userId)
+        .catch(() => {});
+    }
+
     res.status(200).json({
       status: "success",
       data: {

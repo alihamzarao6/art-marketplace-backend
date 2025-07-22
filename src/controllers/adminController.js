@@ -684,6 +684,26 @@ const getConversationDetails = async (req, res, next) => {
   }
 };
 
+// Get traceability overview for admin dashboard
+const getTraceabilityOverview = async (req, res, next) => {
+  try {
+    const traceabilityService = require("../services/traceabilityService");
+    const overview = await traceabilityService.getTraceabilityStats();
+
+    res.status(200).json({
+      status: "success",
+      data: {
+        traceability: overview,
+      },
+    });
+  } catch (error) {
+    next(error);
+    logger.error(
+      `Error in getTraceabilityOverview controller: ${error.message}`
+    );
+  }
+};
+
 module.exports = {
   approveArtwork,
   rejectArtwork,
@@ -699,4 +719,5 @@ module.exports = {
   toggleMessageFlag,
   adminDeleteMessage,
   getConversationDetails,
+  getTraceabilityOverview,
 };
