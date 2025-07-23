@@ -56,7 +56,7 @@ const getArtworkById = async (req, res, next) => {
 
     // Record view if user is viewing
     if (userId) {
-      const engagementService = require("./engagementService");
+      const engagementService = require("../services/engagementService");
 
       // Don't await this to avoid slowing down the response
       engagementService
